@@ -1,0 +1,76 @@
+---
+---
+<div id="mosaic-display" hidden>
+  <div class="comparison-layout">
+    <div class="comparison-item">
+      <h3>Original</h3>
+      <canvas id="original-canvas" class="comparison-canvas"></canvas>
+    </div>
+    <div class="comparison-item">
+      <h3>LEGO Mosaic</h3>
+      <div id="mosaic-grid" class="mosaic-grid" role="img" aria-label="Generated LEGO mosaic"></div>
+    </div>
+  </div>
+  <p class="mosaic-note">32×32 LEGO 1×1 square plates · 1,024 pieces total</p>
+</div>
+
+<style>
+  #mosaic-display {
+    padding: 1rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .comparison-layout {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .comparison-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .comparison-item h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+    margin: 0;
+  }
+
+  .comparison-canvas {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    width: 320px;
+    height: 320px;
+    object-fit: contain;
+  }
+
+  .mosaic-grid {
+    display: grid;
+    grid-template-columns: repeat(32, 10px);
+    grid-template-rows: repeat(32, 10px);
+    gap: 0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .mosaic-cell {
+    width: 10px;
+    height: 10px;
+  }
+
+  .mosaic-note {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.75rem;
+  }
+</style>

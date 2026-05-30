@@ -1,0 +1,72 @@
+---
+---
+<div id="crop-tool" hidden>
+  <p class="crop-instruction">
+    Drag the handles to select a square region around the face. Minimum 100×100 pixels.
+  </p>
+  <div class="crop-container">
+    <img id="crop-image" src="" alt="Image to crop" />
+  </div>
+  <p id="crop-error" class="error-message" role="alert" hidden></p>
+  <div class="crop-actions">
+    <button id="crop-confirm" type="button">Confirm Crop</button>
+    <button id="upload-reset" type="button" class="secondary">Choose Different Image</button>
+  </div>
+</div>
+
+<style>
+  #crop-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .crop-instruction {
+    font-size: 0.9rem;
+    color: #555;
+    text-align: center;
+  }
+
+  .crop-container {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  #crop-image { max-width: 100%; display: block; }
+
+  .crop-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.15s;
+  }
+
+  #crop-confirm { background: #e87722; color: white; }
+  #crop-confirm:hover { background: #d06b1a; }
+
+  .secondary { background: #eee; color: #333; }
+  .secondary:hover { background: #ddd; }
+
+  .error-message {
+    color: #c0392b;
+    background: #fdf0ee;
+    border: 1px solid #f5c6c0;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+  }
+</style>

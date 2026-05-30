@@ -54,9 +54,9 @@ The user clicks a "Generate" button and the system produces a single 32×32 LEGO
 
 **Acceptance Scenarios**:
 
-1. **Given** a cropped and adjusted image is ready, **When** the user clicks "Generate Mosaic", **Then** the system produces a 32×32 pixel-art mosaic using LEGO 1×1 square plate colors within a few seconds.
+1. **Given** a cropped and adjusted image is ready, **When** the user clicks "Generate Mosaic", **Then** the Generate button becomes disabled, a visible progress indicator and status message ("Generating mosaic…") appear, and the system produces a 32×32 pixel-art mosaic within a few seconds.
 2. **Given** the same image and settings, **When** the user generates the mosaic multiple times, **Then** the output is identical each time (deterministic).
-3. **Given** the mosaic is generated, **When** the user views the result, **Then** the mosaic is displayed at a legible size alongside the original cropped input.
+3. **Given** the mosaic is generated, **When** the user views the result, **Then** the progress indicator disappears, the Generate button re-enables, and the mosaic is displayed at a legible size alongside the original cropped input.
 
 ---
 
@@ -78,7 +78,8 @@ After generation, the user can view the color matrix (a labeled grid showing whi
 
 ### Edge Cases
 
-- What happens when the user uploads an image smaller than 32×32 pixels? The system should still allow cropping and scaling, but must warn the user that the result may be low quality.
+- What happens when the uploaded image itself is smaller than 100×100 pixels? The system should display a warning that the image is too small to produce a useful crop and prevent proceeding.
+- What happens when the user's crop selection is smaller than 100×100 pixels? The system displays a warning and disables the Generate button until a valid crop is selected.
 - What happens when the user uploads a very large image (e.g., 20 MB)? The system should accept it or show a clear file size limit error.
 - What happens if the user crops a region so small it is essentially empty or extremely low-resolution? The system should warn that the crop selection is too small to produce a useful mosaic.
 - What happens when brightness and contrast sliders are at their extremes simultaneously (e.g., max brightness + max contrast)? The mosaic generation should still complete without error.
@@ -91,7 +92,7 @@ After generation, the user can view the color matrix (a labeled grid showing whi
 ### Functional Requirements
 
 - **FR-001**: The system MUST allow users to upload a single image file in JPEG or PNG format from their local device.
-- **FR-002**: The system MUST present an interactive square crop tool after image upload, allowing the user to select any square sub-region of the uploaded image.
+- **FR-002**: The system MUST present an interactive square crop tool after image upload, allowing the user to select any square sub-region of the uploaded image. The minimum valid crop size is 100×100 pixels; if the selection is smaller, the system MUST display a warning and prevent the user from proceeding to Generate.
 - **FR-003**: The system MUST display a live preview of the cropped image after the user confirms the crop selection.
 - **FR-004**: The system MUST provide a brightness slider with a range of −128 to +128 and a contrast slider with a range of −128 to +128, each defaulting to 0.
 - **FR-005**: The system MUST update the image preview in real time as the user adjusts brightness or contrast sliders.
@@ -102,6 +103,9 @@ After generation, the user can view the color matrix (a labeled grid showing whi
 - **FR-010**: The system MUST display a parts list: an aggregated count of each distinct LEGO color used, summing to exactly 1,024 pieces.
 - **FR-011**: The system MUST display the original cropped face image alongside the generated mosaic for visual comparison.
 - **FR-012**: If an uploaded file is not a valid JPEG or PNG image, the system MUST display a clear error message and prevent further processing.
+- **FR-013**: The system MUST perform all image processing and mosaic generation entirely within the user's browser. No image data or derived output may be transmitted to any server at any point.
+- **FR-014**: While mosaic generation is in progress, the system MUST display a visible progress indicator and a status message, and MUST disable the Generate button to prevent duplicate submissions.
+- **FR-015**: The upload step MUST display an inline privacy notice informing the user that their image never leaves their device and all processing occurs in the browser.
 
 ### Key Entities
 
@@ -109,7 +113,7 @@ After generation, the user can view the color matrix (a labeled grid showing whi
 - **Cropped Image**: A square sub-region of the Face Image selected by the user. Key attributes: square pixel dimensions, pixel data.
 - **Adjusted Image**: The Cropped Image with brightness and contrast applied. Key attributes: brightness offset (−128 to +128), contrast offset (−128 to +128), resulting pixel data.
 - **Mosaic**: A 32×32 grid of LEGO color assignments derived from the Adjusted Image. Key attributes: 1,024 color assignments, each referencing a LEGO palette color.
-- **LEGO Color**: A specific color available in the LEGO 1×1 square plate palette. Key attributes: color ID, color name, RGB value used for matching.
+- **LEGO Color**: A specific color available in the LEGO 1×1 square plate palette, sourced from a static data file bundled with the app. Key attributes: color ID, color name, RGB value used for matching.
 - **Color Matrix**: A 32×32 structured representation of the Mosaic showing per-cell color identifiers.
 - **Parts List**: An aggregated count per LEGO color across all 1,024 cells of the Mosaic.
 
@@ -134,9 +138,22 @@ After generation, the user can view the color matrix (a labeled grid showing whi
 - The LEGO color palette used is the set of colors available for LEGO 1×1 square plates (consistent with the lego-art-remix reference implementation).
 - Default algorithm settings are: interpolation = average pooling, color distance = CIEDE2000, piece type = 1×1 square plate. These values are fixed for Phase 1A with no user-configurable controls exposed.
 - No user account, login, or persistent storage is required; the session is entirely in-browser and stateless from the server's perspective.
-- No image is transmitted to any server; all processing occurs client-side in the browser (or, if server-side processing is chosen during planning, no image is stored after the response is returned).
+- All image processing and mosaic generation runs entirely in the user's browser. No image data, pixel data, or derived output is ever transmitted to a server. This is a firm constraint, not a planning-phase decision.
 - The lego-art-remix algorithm will be re-implemented independently, respecting the intellectual property of the original creator, rather than calling an external service.
+- The LEGO 1×1 square plate color palette (IDs, names, RGB values) is bundled as a static data file within the app. No external fetch is required at runtime; the palette does not change without a code update.
 - File size limit for uploads is assumed to be 10 MB; files exceeding this show a clear error.
 - The color matrix display uses short human-readable color identifiers (e.g., LEGO color names or standard color IDs), not RGB hex codes.
 - HSV adjustment, alternative interpolation modes, and alternative color distance algorithms are explicitly out of scope for Phase 1A.
 - Camera capture, multi-candidate generation, backing plate design, BrickLink integration, Studio export, PDF export, telemetry, projects, and LLM features are all out of scope for Phase 1A.
+
+---
+
+## Clarifications
+
+### Session 2026-05-30
+
+- Q: Should all image processing and mosaic generation run client-side in the browser, or may processing be delegated to a server? → A: Client-side only. No image data is ever sent to a server.
+- Q: Where does the LEGO color palette data come from? → A: Static hardcoded file bundled with the app; no external fetch required.
+- Q: What does the user see while mosaic generation is running? → A: Visible progress indicator and status message; Generate button disabled until complete.
+- Q: Should the app display an explicit privacy notice about image processing? → A: Yes — inline notice near the upload control stating the image never leaves the device.
+- Q: What is the minimum valid crop selection size? → A: 100×100 pixels; warn and block Generate if smaller.

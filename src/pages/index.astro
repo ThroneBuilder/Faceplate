@@ -20,6 +20,7 @@ import PartsList from '../components/PartsList.astro'
       <div class="header-inner">
         <h1>Faceplate</h1>
         <p class="tagline">Turn any face into a LEGO mosaic</p>
+        <a class="more-info" href="https://thronebuilder.com/blog/faceplate/" target="_blank" rel="noopener noreferrer">Learn more about this project ↗</a>
       </div>
     </header>
 
@@ -418,6 +419,8 @@ import PartsList from '../components/PartsList.astro'
 
   header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
   .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
+  .more-info { display: inline-block; margin-top: 0.5rem; font-size: 0.8rem; color: #e87722; text-decoration: none; }
+  .more-info:hover { text-decoration: underline; }
 
   main {
     max-width: 900px;

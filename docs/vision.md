@@ -198,3 +198,22 @@ Automatable human steps
     1. Import stand design from Lego Studio
     2. Results page option to export inventory to BrickLink into Wanted List
     3. Results page option to export design to Lego Studio for instructions
+
+## ChatGPT's implementation advice
+
+How to think about SpecKit:
+1. Work in small phases. Phase 1A to start with the most basic image-to-basic-mosaic process, excluding multiple photos or candidates, iteration, layering, export or additional features
+2. Iterate specify+clarify until the scope is clean. In phase 1, clarify upload vs camera, supported palette, algorithm, output format, success criteria, use of existing code.
+3. Iterate plan on architectural decisions until technical choices made understood. Phase 1A should decide Astro vs API, browser or server side, data model for colors, where tests live, what gets persisted.
+4. Define tasks that are end-to-end implementable and testable
+
+Spec granularity after that first 1A phase:
+- Phase 1B: camera capture + back buttons
+- Phase 1C: manual face crop/trim
+- Phase 1D: backing plate generator
+- Phase 2A: multi-photo candidates
+- Phase 2B: candidate iteration
+- Phase 2C: export/save
+- Phase 3A: telemetry
+- Phase 3B: project galleries
+- Phase 3C: BrickLink/Studio integration

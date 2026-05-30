@@ -1,0 +1,159 @@
+---
+---
+<div id="adjustment-panel" hidden>
+  <div class="panel-layout">
+    <div class="preview-section">
+      <p class="label">Preview</p>
+      <canvas id="preview-canvas" width="256" height="256"></canvas>
+    </div>
+
+    <div class="controls-section">
+      <div class="slider-group">
+        <label for="brightness-slider">
+          Brightness <span id="brightness-value" class="value-badge">0</span>
+        </label>
+        <input
+          type="range"
+          id="brightness-slider"
+          min="-128"
+          max="128"
+          value="0"
+          step="1"
+        />
+      </div>
+
+      <div class="slider-group">
+        <label for="contrast-slider">
+          Contrast <span id="contrast-value" class="value-badge">0</span>
+        </label>
+        <input
+          type="range"
+          id="contrast-slider"
+          min="-128"
+          max="128"
+          value="0"
+          step="1"
+        />
+      </div>
+
+      <div class="action-buttons">
+        <button id="generate-button" type="button">Generate Mosaic</button>
+        <button id="recrop-button" type="button" class="secondary">Re-crop</button>
+      </div>
+
+      <div id="progress-indicator" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <span id="progress-message">Generating mosaic…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #adjustment-panel {
+    padding: 1rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .panel-layout {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .preview-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  #preview-canvas {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    max-width: 256px;
+    height: auto;
+  }
+
+  .controls-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 240px;
+  }
+
+  .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .value-badge {
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+    min-width: 2.5rem;
+    text-align: center;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: #e87722;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  #generate-button { background: #e87722; color: white; }
+  #generate-button:hover:not(:disabled) { background: #d06b1a; }
+  #generate-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .secondary { background: #eee; color: #333; }
+  .secondary:hover { background: #ddd; }
+
+  #progress-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ddd;
+    border-top-color: #e87722;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>

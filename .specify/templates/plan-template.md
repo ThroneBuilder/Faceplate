@@ -40,7 +40,20 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+*Read `.specify/memory/constitution.md` for the full gate definitions. Evaluate
+each gate below and mark ✅ pass or ❌ fail with justification.*
+
+| Gate | Principle | Result | Notes |
+|---|---|---|---|
+| Client-only processing | I, II | [✅/❌] | [notes] |
+| Deterministic output | III | [✅/❌] | [notes] |
+| Schema extensibility | IV | [✅/❌] | [notes] |
+| Snapshot coverage | V | [✅/❌] | [notes] |
+| Algorithmic baseline | VI | [✅/❌] | [notes] |
+| TypeScript strict | Constraints | [✅/❌] | [notes] |
+
+> **ERROR on any ❌ unless violation is justified in the Complexity Tracking
+> table below.**
 
 ## Project Structure
 

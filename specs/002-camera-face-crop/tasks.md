@@ -18,10 +18,10 @@ description: "Task list for Phase 1B/1C-pre — Camera Capture and Seeded Manual
 
 **Purpose**: Update dependencies and prepare model file.
 
-- [ ] T001 Update `package.json`: add `"@mediapipe/tasks-vision": "^0.10.0"` and `"exifr": "^7.1.3"` to `dependencies`; remove `"cropperjs"` from `dependencies`
+- [X] T001 Update `package.json`: add `"@mediapipe/tasks-vision": "^0.10.0"` and `"exifr": "^7.1.3"` to `dependencies`; remove `"cropperjs"` from `dependencies`
 - [ ] T002 Run `pnpm install` to apply dependency changes
-- [ ] T003 [MANUAL] Download MediaPipe model: fetch `face_landmarker.task` (~4 MB) from `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task` and place at `public/models/face_landmarker.task`
-- [ ] T004 [P] Create `tests/mocks/head-detection.mock.ts`: export `vi.mock` stubs for `initHeadDetector` (resolves immediately) and `detectHeadBounds` (returns `{ topY: 40, bottomY: 200, detectionStatus: 'found' }`)
+- [X] T003 [MANUAL] Download MediaPipe model: fetch `face_landmarker.task` (~4 MB) from `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task` and place at `public/models/face_landmarker.task`
+- [X] T004 [P] Create `tests/mocks/head-detection.mock.ts`: export `vi.mock` stubs for `initHeadDetector` (resolves immediately) and `detectHeadBounds` (returns `{ topY: 40, bottomY: 200, detectionStatus: 'found' }`)
 
 ---
 
@@ -29,12 +29,12 @@ description: "Task list for Phase 1B/1C-pre — Camera Capture and Seeded Manual
 
 **Purpose**: Update shared types, pipeline, state machine, and test infrastructure that all user stories depend on.
 
-- [ ] T005 Update `src/types/index.ts`: add `BrickHeight` (union `26 | 28 | 30 | 32 | 34 | 36`), `HeadBounds`, `HeadCropSelection`, `CapturedPhoto`, `CameraSession`, `CropGeometry`; update `Mosaic.height` from `32` to `BrickHeight`; update `AdjustedImage.source` from `CropSelection` to `HeadCropSelection`; update `MosaicOptions.height` to `BrickHeight`; update `AppState` with camera + head-crop phases per `data-model.md`; keep `CropSelection` as deprecated alias
-- [ ] T006 [P] Update `src/lib/mosaic/pipeline.ts`: change `const GRID_SIZE = 32` height usage to `options?.height ?? 32` typed as `BrickHeight`; update returned `Mosaic.height` to the resolved `BrickHeight` value (depends on T005)
-- [ ] T007 [P] Update `src/lib/mosaic/parts-list.ts`: remove `totalPieces === 1024` assertion; compute `totalPieces` as `entries.reduce((s, e) => s + e.count, 0)` (which equals `32 × mosaic.height` for any valid mosaic) (depends on T005)
-- [ ] T008 [P] Update `src/lib/app-state.ts`: add all new camera transition functions (`onCameraRequested`, `onCameraSessionReady`, `onPhotoCaptured`, `onPhotoRetaken`, `onPhotoConfirmed`, `onCameraError`), preparation function (`onImagePrepared`), and head-crop functions (`onBrickHeightChanged`, `onHeadCropConfirmed`, `onResetToFullImage`) per `contracts/ui-state.md`; update existing transitions that reference `CropSelection` to use `HeadCropSelection` (depends on T005)
-- [ ] T009 [P] Update `tests/unit/parts-list.test.ts`: replace the fixed `totalPieces === 1024` test with tests for `totalPieces === 32 × brickHeight` for brickHeights 26, 32, and 36; add test that `totalPieces` matches the sum of all entry counts (depends on T005, T007)
-- [ ] T010 [P] Update `tests/regression/mosaic-pipeline.test.ts`: add four new tests using `makeRainbowGradient()` for heights 26, 28, 34, and 36 — each calling `generateMosaic(img, palette, { height: H })` with `toMatchFileSnapshot('__snapshots__/mosaic-32xH.snap.json')`; assert `mosaic.grid.length === H` and `mosaic.width === 32` for each; verify existing 32×32 test still passes (satisfies SC-006 coverage for all non-default heights) (depends on T005, T006)
+- [X] T005 Update `src/types/index.ts`: add `BrickHeight` (union `26 | 28 | 30 | 32 | 34 | 36`), `HeadBounds`, `HeadCropSelection`, `CapturedPhoto`, `CameraSession`, `CropGeometry`; update `Mosaic.height` from `32` to `BrickHeight`; update `AdjustedImage.source` from `CropSelection` to `HeadCropSelection`; update `MosaicOptions.height` to `BrickHeight`; update `AppState` with camera + head-crop phases per `data-model.md`; keep `CropSelection` as deprecated alias
+- [X] T006 [P] Update `src/lib/mosaic/pipeline.ts`: change `const GRID_SIZE = 32` height usage to `options?.height ?? 32` typed as `BrickHeight`; update returned `Mosaic.height` to the resolved `BrickHeight` value (depends on T005)
+- [X] T007 [P] Update `src/lib/mosaic/parts-list.ts`: remove `totalPieces === 1024` assertion; compute `totalPieces` as `entries.reduce((s, e) => s + e.count, 0)` (which equals `32 × mosaic.height` for any valid mosaic) (depends on T005)
+- [X] T008 [P] Update `src/lib/app-state.ts`: add all new camera transition functions (`onCameraRequested`, `onCameraSessionReady`, `onPhotoCaptured`, `onPhotoRetaken`, `onPhotoConfirmed`, `onCameraError`), preparation function (`onImagePrepared`), and head-crop functions (`onBrickHeightChanged`, `onHeadCropConfirmed`, `onResetToFullImage`) per `contracts/ui-state.md`; update existing transitions that reference `CropSelection` to use `HeadCropSelection` (depends on T005)
+- [X] T009 [P] Update `tests/unit/parts-list.test.ts`: replace the fixed `totalPieces === 1024` test with tests for `totalPieces === 32 × brickHeight` for brickHeights 26, 32, and 36; add test that `totalPieces` matches the sum of all entry counts (depends on T005, T007)
+- [X] T010 [P] Update `tests/regression/mosaic-pipeline.test.ts`: add four new tests using `makeRainbowGradient()` for heights 26, 28, 34, and 36 — each calling `generateMosaic(img, palette, { height: H })` with `toMatchFileSnapshot('__snapshots__/mosaic-32xH.snap.json')`; assert `mosaic.grid.length === H` and `mosaic.width === 32` for each; verify existing 32×32 test still passes (satisfies SC-006 coverage for all non-default heights) (depends on T005, T006)
 
 **Checkpoint**: Foundational types and pipeline updated — user story implementation can now begin.
 
@@ -50,14 +50,14 @@ description: "Task list for Phase 1B/1C-pre — Camera Capture and Seeded Manual
 
 > **Write tests FIRST — confirm they fail before implementing.**
 
-- [ ] T011 [P] [US1] Write unit tests for camera permission handling in `tests/unit/camera.test.ts`: test `NotAllowedError` maps to `camera-error` state, `NotFoundError` hides camera option, successful `getUserMedia` transitions to `camera-viewfinder`; mock `navigator.mediaDevices`
+- [X] T011 [P] [US1] Write unit tests for camera permission handling in `tests/unit/camera.test.ts`: test `NotAllowedError` maps to `camera-error` state, `NotFoundError` hides camera option, successful `getUserMedia` transitions to `camera-viewfinder`; mock `navigator.mediaDevices`
 
 ### Implementation for User Story 1
 
-- [ ] T012 [US1] Implement `src/components/CameraViewfinder.astro`: `<video>` element for live stream; Capture button (`<button id="capture-btn">`); "Switch Camera" button visible when `availableDevices.length > 1`; error message slot; emits `captureTaken` custom event with the captured `Blob` (depends on T008)
-- [ ] T013 [P] [US1] Implement `src/components/CameraPreview.astro`: `<img id="preview-img">` for captured photo preview; "Confirm" and "Retake" buttons; emits `captureConfirmed` and `captureRetaken` custom events (depends on T005)
-- [ ] T014 [US1] Update `src/components/UploadArea.astro`: add a "Use Camera" section above the existing file `<input>` — visible only when `navigator.mediaDevices?.getUserMedia` is available (feature-detected at runtime); when not available, section is absent with no empty space; add `<p id="camera-error">` error slot (depends on T008)
-- [ ] T015 [US1] Wire US1 camera flow in `src/pages/index.astro`: remove `import Cropper from 'cropperjs'` and `import 'cropperjs/dist/cropper.css'`; remove the Phase 1A `initCropper()`, `destroyCropper()`, `cropConfirmBtn`, and `uploadResetBtn` event handler functions and listeners; handle `getUserMedia` call → `onCameraSessionReady`; handle `captureTaken` event → `onPhotoCaptured` → show `CameraPreview`; handle `captureConfirmed` → stop stream → create `File` from blob → `validateFile` → `onFileValidated` → transition to `preparing`; handle `captureRetaken` → `onPhotoRetaken` → resume viewfinder; handle `NotAllowedError`/`NotFoundError` → `onCameraError`; show/hide `CameraViewfinder`, `CameraPreview`, `CameraError` sections based on `AppState.phase` (depends on T008, T012, T013, T014)
+- [X] T012 [US1] Implement `src/components/CameraViewfinder.astro`: `<video>` element for live stream; Capture button (`<button id="capture-btn">`); "Switch Camera" button visible when `availableDevices.length > 1`; error message slot; emits `captureTaken` custom event with the captured `Blob` (depends on T008)
+- [X] T013 [P] [US1] Implement `src/components/CameraPreview.astro`: `<img id="preview-img">` for captured photo preview; "Confirm" and "Retake" buttons; emits `captureConfirmed` and `captureRetaken` custom events (depends on T005)
+- [X] T014 [US1] Update `src/components/UploadArea.astro`: add a "Use Camera" section above the existing file `<input>` — visible only when `navigator.mediaDevices?.getUserMedia` is available (feature-detected at runtime); when not available, section is absent with no empty space; add `<p id="camera-error">` error slot (depends on T008)
+- [X] T015 [US1] Wire US1 camera flow in `src/pages/index.astro`: remove `import Cropper from 'cropperjs'` and `import 'cropperjs/dist/cropper.css'`; remove the Phase 1A `initCropper()`, `destroyCropper()`, `cropConfirmBtn`, and `uploadResetBtn` event handler functions and listeners; handle `getUserMedia` call → `onCameraSessionReady`; handle `captureTaken` event → `onPhotoCaptured` → show `CameraPreview`; handle `captureConfirmed` → stop stream → create `File` from blob → `validateFile` → `onFileValidated` → transition to `preparing`; handle `captureRetaken` → `onPhotoRetaken` → resume viewfinder; handle `NotAllowedError`/`NotFoundError` → `onCameraError`; show/hide `CameraViewfinder`, `CameraPreview`, `CameraError` sections based on `AppState.phase` (depends on T008, T012, T013, T014)
 
 **Checkpoint**: User Story 1 independently functional — camera → capture → confirm → preparing phase begins.
 

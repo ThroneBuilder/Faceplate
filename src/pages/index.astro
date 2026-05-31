@@ -1,6 +1,7 @@
 ---
 import UploadArea from '../components/UploadArea.astro'
-import CropTool from '../components/CropTool.astro'
+import CameraViewfinder from '../components/CameraViewfinder.astro'
+import CameraPreview from '../components/CameraPreview.astro'
 import AdjustmentPanel from '../components/AdjustmentPanel.astro'
 import MosaicDisplay from '../components/MosaicDisplay.astro'
 import ColorMatrix from '../components/ColorMatrix.astro'
@@ -26,7 +27,15 @@ import PartsList from '../components/PartsList.astro'
 
     <main>
       <UploadArea />
-      <CropTool />
+      <CameraViewfinder />
+      <CameraPreview />
+
+      <!-- Preparing indicator (US2 T029 — shown while EXIF + head detection runs) -->
+      <div id="preparing-indicator" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Preparing image…</span>
+      </div>
+
       <AdjustmentPanel />
       <MosaicDisplay />
       <ColorMatrix />
@@ -36,89 +45,129 @@ import PartsList from '../components/PartsList.astro'
 </html>
 
 <script>
-  import type { AppState, FaceImage, CropSelection, AdjustedImage, Mosaic } from '../types/index.js'
+  import type { AppState, FaceImage, HeadCropSelection, AdjustedImage, Mosaic, CameraSession, CapturedPhoto } from '../types/index.js'
   import type { LegoColor } from '../types/index.js'
   import { applyAdjustments } from '../lib/image/adjust.js'
   import { validateFile } from '../lib/image/validate.js'
   import { generateMosaic } from '../lib/mosaic/pipeline.js'
   import { derivePartsList } from '../lib/mosaic/parts-list.js'
+  import {
+    onFileSelected, onFileValidated, onFileValidationError,
+    onCameraSessionReady, onPhotoCaptured, onPhotoRetaken, onPhotoConfirmed, onCameraError,
+    onAdjustmentChanged, onGenerateClicked, onGenerateSuccess, onReset,
+  } from '../lib/app-state.js'
   import PALETTE_RAW from '../data/lego-palette.json'
-  // @ts-ignore — Cropper.js v1 types may need separate @types/cropperjs install
-  import Cropper from 'cropperjs'
-  import 'cropperjs/dist/cropper.css'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
 
   // ─── State ───────────────────────────────────────────────────────────────────
 
   let appState: AppState = { phase: 'idle' }
-  let cropper: InstanceType<typeof Cropper> | null = null
-  let currentCrop: CropSelection | null = null
+  let activeStream: MediaStream | null = null
+  let availableVideoDevices: MediaDeviceInfo[] = []
+  let currentDeviceIndex = 0
 
   // ─── DOM references ───────────────────────────────────────────────────────────
 
-  const uploadArea       = document.getElementById('upload-area')!
-  const uploadInput      = document.getElementById('upload-input') as HTMLInputElement
-  const uploadError      = document.getElementById('upload-error')!
+  const uploadArea          = document.getElementById('upload-area')!
+  const uploadInput         = document.getElementById('upload-input') as HTMLInputElement
+  const uploadError         = document.getElementById('upload-error')!
 
-  const cropTool         = document.getElementById('crop-tool')!
-  const cropImage        = document.getElementById('crop-image') as HTMLImageElement
-  const cropError        = document.getElementById('crop-error')!
-  const cropConfirmBtn   = document.getElementById('crop-confirm') as HTMLButtonElement
-  const uploadResetBtn   = document.getElementById('upload-reset') as HTMLButtonElement
+  const cameraOption        = document.getElementById('camera-option')!
+  const useCameraBtn        = document.getElementById('use-camera-btn') as HTMLButtonElement
+  const cameraSwitchRow     = document.getElementById('camera-switch-row')!
+  const switchCameraBtn     = document.getElementById('switch-camera-btn') as HTMLButtonElement
+  const cancelCameraBtn     = document.getElementById('cancel-camera-btn') as HTMLButtonElement
+  const cameraErrorMsg      = document.getElementById('camera-error-msg')!
+  const uploadDivider       = document.getElementById('upload-divider')!
 
-  const adjustmentPanel  = document.getElementById('adjustment-panel')!
-  const previewCanvas    = document.getElementById('preview-canvas') as HTMLCanvasElement
-  const brightnessSlider = document.getElementById('brightness-slider') as HTMLInputElement
-  const contrastSlider   = document.getElementById('contrast-slider') as HTMLInputElement
-  const brightnessValue  = document.getElementById('brightness-value')!
-  const contrastValue    = document.getElementById('contrast-value')!
-  const generateBtn      = document.getElementById('generate-button') as HTMLButtonElement
-  const recropBtn        = document.getElementById('recrop-button') as HTMLButtonElement
-  const progressIndicator = document.getElementById('progress-indicator')!
-  const progressMessage  = document.getElementById('progress-message')!
+  const cameraViewfinder    = document.getElementById('camera-viewfinder')!
+  const cameraVideo         = document.getElementById('camera-video') as HTMLVideoElement
+  const captureBtn          = document.getElementById('capture-btn') as HTMLButtonElement
 
-  const mosaicDisplay    = document.getElementById('mosaic-display')!
-  const mosaicGrid       = document.getElementById('mosaic-grid')!
-  const originalCanvas   = document.getElementById('original-canvas') as HTMLCanvasElement
+  const cameraPreview       = document.getElementById('camera-preview')!
+  const previewImg          = document.getElementById('preview-img') as HTMLImageElement
+  const confirmPhotoBtn     = document.getElementById('confirm-photo-btn') as HTMLButtonElement
+  const retakeBtn           = document.getElementById('retake-btn') as HTMLButtonElement
 
-  const colorMatrixSection = document.getElementById('color-matrix-section')!
-  const colorMatrixEl    = document.getElementById('color-matrix')!
+  const preparingIndicator  = document.getElementById('preparing-indicator')!
 
-  const partsListSection = document.getElementById('parts-list-section')!
-  const partsListEl      = document.getElementById('parts-list')!
-  const totalPiecesEl    = document.getElementById('total-pieces')!
+  const adjustmentPanel     = document.getElementById('adjustment-panel')!
+  const previewCanvas       = document.getElementById('preview-canvas') as HTMLCanvasElement
+  const brightnessSlider    = document.getElementById('brightness-slider') as HTMLInputElement
+  const contrastSlider      = document.getElementById('contrast-slider') as HTMLInputElement
+  const brightnessValue     = document.getElementById('brightness-value')!
+  const contrastValue       = document.getElementById('contrast-value')!
+  const generateBtn         = document.getElementById('generate-button') as HTMLButtonElement
+  const recropBtn           = document.getElementById('recrop-button') as HTMLButtonElement
+  const progressIndicator   = document.getElementById('progress-indicator')!
 
-  // ─── Visibility helper ────────────────────────────────────────────────────────
+  const mosaicDisplay       = document.getElementById('mosaic-display')!
+  const mosaicGrid          = document.getElementById('mosaic-grid')!
+  const originalCanvas      = document.getElementById('original-canvas') as HTMLCanvasElement
+
+  const colorMatrixSection  = document.getElementById('color-matrix-section')!
+  const colorMatrixEl       = document.getElementById('color-matrix')!
+
+  const partsListSection    = document.getElementById('parts-list-section')!
+  const partsListEl         = document.getElementById('parts-list')!
+  const totalPiecesEl       = document.getElementById('total-pieces')!
+
+  // ─── Visibility ───────────────────────────────────────────────────────────────
 
   function show(el: HTMLElement) { el.hidden = false }
-  function hide(el: HTMLElement) { el.hidden = true  }
+  function hide(el: HTMLElement) { el.hidden = true }
+
+  function showError(el: HTMLElement, msg: string) { el.textContent = msg; el.hidden = false }
+  function clearError(el: HTMLElement) { el.textContent = ''; el.hidden = true }
 
   function renderPhase(state: AppState) {
-    hide(uploadArea); hide(cropTool); hide(adjustmentPanel)
+    hide(uploadArea); hide(cameraViewfinder); hide(cameraPreview)
+    hide(preparingIndicator); hide(adjustmentPanel)
     hide(mosaicDisplay); hide(colorMatrixSection); hide(partsListSection)
-    clearError(uploadError); clearError(cropError)
+    clearError(uploadError); clearError(cameraErrorMsg)
 
     switch (state.phase) {
       case 'idle':
       case 'uploading':
         show(uploadArea)
         break
+
       case 'upload-error':
         show(uploadArea)
         showError(uploadError, state.error)
         break
-      case 'cropping':
-      case 'crop-error':
-        show(cropTool)
-        if (state.phase === 'crop-error') showError(cropError, state.error)
+
+      case 'camera-viewfinder':
+        show(cameraViewfinder)
         break
+
+      case 'camera-preview':
+        show(cameraPreview)
+        break
+
+      case 'camera-error':
+        show(uploadArea)
+        showError(cameraErrorMsg, state.error)
+        break
+
+      case 'preparing':
+        show(preparingIndicator)
+        break
+
+      // head-cropping and head-crop-error handled by US2 (HeadCropTool)
+      case 'head-cropping':
+      case 'head-crop-error':
+        show(preparingIndicator) // temporary placeholder until US2 wires HeadCropTool
+        break
+
       case 'adjusting':
       case 'generating':
         show(adjustmentPanel)
         generateBtn.disabled = state.phase === 'generating'
         progressIndicator.hidden = state.phase !== 'generating'
         break
+
       case 'result':
         show(adjustmentPanel)
         show(mosaicDisplay)
@@ -130,110 +179,181 @@ import PartsList from '../components/PartsList.astro'
     }
   }
 
-  function showError(el: HTMLElement, msg: string) {
-    el.textContent = msg
-    el.hidden = false
+  // ─── Temporary bypass: full-image crop until US2 implements head detection ────
+  // Replaced by US2's EXIF correction + MediaPipe head detection + HeadCropTool.
+
+  async function prepareFullImageCrop(image: FaceImage): Promise<void> {
+    return new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width  = img.naturalWidth
+        canvas.height = img.naturalHeight
+        canvas.getContext('2d')!.drawImage(img, 0, 0)
+        const imageData = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+        const crop: HeadCropSelection = {
+          topY: 0, bottomY: canvas.height,
+          leftX: 0, rightX: canvas.width,
+          cropWidthPx: canvas.width, cropHeightPx: canvas.height,
+          brickHeight: 32,
+          imageData,
+        }
+        appState = { phase: 'adjusting', crop, brightness: 0, contrast: 0 }
+        brightnessSlider.value = '0'
+        contrastSlider.value   = '0'
+        brightnessValue.textContent = '0'
+        contrastValue.textContent   = '0'
+        renderPhase(appState)
+        renderPreview(imageData, 0, 0)
+        resolve()
+      }
+      img.onerror = () => resolve() // fallback: stay in preparing
+      img.src = image.objectUrl
+    })
   }
 
-  function clearError(el: HTMLElement) {
-    el.textContent = ''
-    el.hidden = true
+  // ─── Camera availability detection ───────────────────────────────────────────
+
+  async function detectCameraSupport() {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter(d => d.kind === 'videoinput')
+      if (videoDevices.length === 0) return
+      availableVideoDevices = videoDevices
+      show(cameraOption)
+      show(uploadDivider)
+    } catch {
+      // Camera enumeration failed silently — upload-only UI remains
+    }
   }
 
-  // ─── Upload flow (US1) ────────────────────────────────────────────────────────
+  // ─── Camera flow (US1) ────────────────────────────────────────────────────────
+
+  async function startCamera(deviceId?: string) {
+    try {
+      if (activeStream) stopStream()
+      const constraints: MediaStreamConstraints = {
+        video: deviceId
+          ? { deviceId: { exact: deviceId } }
+          : { facingMode: 'user' },
+      }
+      activeStream = await navigator.mediaDevices.getUserMedia(constraints)
+      cameraVideo.srcObject = activeStream
+
+      const session: CameraSession = {
+        stream: activeStream,
+        activeDeviceId: deviceId ?? availableVideoDevices[0]?.deviceId ?? '',
+        availableDevices: availableVideoDevices,
+        permissionState: 'granted',
+      }
+
+      appState = onCameraSessionReady(appState, session)
+      renderPhase(appState)
+
+      cameraSwitchRow.hidden = availableVideoDevices.length < 2
+
+    } catch (err: unknown) {
+      const name = err instanceof DOMException ? err.name : 'UnknownError'
+      const msg = name === 'NotAllowedError'
+        ? 'Camera access was denied. To enable it, click the camera icon in your browser\'s address bar.'
+        : name === 'NotFoundError'
+        ? 'No camera was found on this device.'
+        : 'Camera could not be started. Please try uploading a file instead.'
+      appState = onCameraError(appState, msg)
+      renderPhase(appState)
+    }
+  }
+
+  function stopStream() {
+    activeStream?.getTracks().forEach(t => t.stop())
+    activeStream = null
+  }
+
+  useCameraBtn.addEventListener('click', () => startCamera())
+
+  cancelCameraBtn.addEventListener('click', () => {
+    stopStream()
+    appState = onReset(appState)
+    renderPhase(appState)
+  })
+
+  switchCameraBtn.addEventListener('click', async () => {
+    currentDeviceIndex = (currentDeviceIndex + 1) % availableVideoDevices.length
+    await startCamera(availableVideoDevices[currentDeviceIndex].deviceId)
+  })
+
+  captureBtn.addEventListener('click', () => {
+    if (appState.phase !== 'camera-viewfinder') return
+    const canvas = document.createElement('canvas')
+    canvas.width  = cameraVideo.videoWidth
+    canvas.height = cameraVideo.videoHeight
+    canvas.getContext('2d')!.drawImage(cameraVideo, 0, 0)
+    canvas.toBlob(blob => {
+      if (!blob) return
+      const photo: CapturedPhoto = {
+        blob,
+        widthPx: canvas.width,
+        heightPx: canvas.height,
+        capturedAt: Date.now(),
+      }
+      appState = onPhotoCaptured(appState as { phase: 'camera-viewfinder'; session: CameraSession }, photo)
+      previewImg.src = URL.createObjectURL(blob)
+      renderPhase(appState)
+    }, 'image/jpeg', 0.92)
+  })
+
+  retakeBtn.addEventListener('click', () => {
+    if (appState.phase !== 'camera-preview') return
+    appState = onPhotoRetaken(appState as { phase: 'camera-preview'; session: CameraSession })
+    renderPhase(appState)
+  })
+
+  confirmPhotoBtn.addEventListener('click', async () => {
+    if (appState.phase !== 'camera-preview') return
+    const { photo, session } = appState as { phase: 'camera-preview'; photo: CapturedPhoto; session: CameraSession }
+
+    stopStream()
+
+    const file = new File([photo.blob], 'capture.jpg', { type: 'image/jpeg' })
+    try {
+      const image: FaceImage = await validateFile(file)
+      appState = onPhotoConfirmed(
+        { phase: 'camera-preview', photo, session },
+        image,
+      )
+      renderPhase(appState)
+      await prepareFullImageCrop(image) // temporary bypass — replaced by US2
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to process photo'
+      appState = onCameraError(appState, msg)
+      renderPhase(appState)
+    }
+  })
+
+  // ─── File upload flow ─────────────────────────────────────────────────────────
 
   uploadInput.addEventListener('change', async () => {
     const file = uploadInput.files?.[0]
     if (!file) return
 
-    appState = { phase: 'uploading' }
+    appState = onFileSelected({ phase: 'idle' })
     renderPhase(appState)
 
     try {
       const image: FaceImage = await validateFile(file)
-      appState = { phase: 'cropping', image }
+      appState = onFileValidated({ phase: 'uploading' }, image)
       renderPhase(appState)
-      initCropper(image)
+      await prepareFullImageCrop(image) // temporary bypass — replaced by US2
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load image'
-      appState = { phase: 'upload-error', error: msg }
+      appState = onFileValidationError({ phase: 'uploading' }, msg)
       renderPhase(appState)
       uploadInput.value = ''
     }
   })
 
-  uploadResetBtn.addEventListener('click', () => {
-    destroyCropper()
-    if (appState.phase === 'cropping' || appState.phase === 'crop-error') {
-      URL.revokeObjectURL(appState.image.objectUrl)
-    }
-    appState = { phase: 'idle' }
-    uploadInput.value = ''
-    renderPhase(appState)
-  })
-
-  function initCropper(image: FaceImage) {
-    cropImage.src = image.objectUrl
-    cropImage.onload = () => {
-      if (cropper) cropper.destroy()
-      cropper = new Cropper(cropImage, {
-        aspectRatio: 1,
-        viewMode: 1,
-        minCropBoxWidth: 100,
-        minCropBoxHeight: 100,
-        dragMode: 'move',
-        autoCropArea: 0.8,
-      })
-    }
-  }
-
-  function destroyCropper() {
-    if (cropper) { cropper.destroy(); cropper = null }
-  }
-
-  cropConfirmBtn.addEventListener('click', () => {
-    if (!cropper || appState.phase !== 'cropping' && appState.phase !== 'crop-error') return
-
-    const cropData = cropper.getData(true)
-    if (cropData.width < 100 || cropData.height < 100) {
-      if (appState.phase === 'cropping' || appState.phase === 'crop-error') {
-        appState = { phase: 'crop-error', image: appState.image, error: 'Selection is too small. Please choose a region of at least 100×100 pixels.' }
-        renderPhase(appState)
-      }
-      return
-    }
-
-    const croppedCanvas = cropper.getCroppedCanvas({ width: 320, height: 320 })
-    const ctx = croppedCanvas.getContext('2d')!
-    const imageData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height)
-
-    currentCrop = {
-      x: cropData.x,
-      y: cropData.y,
-      widthPx: cropData.width,
-      heightPx: cropData.height,
-      imageData,
-    }
-
-    destroyCropper()
-
-    appState = {
-      phase: 'adjusting',
-      crop: currentCrop,
-      brightness: 0,
-      contrast: 0,
-    }
-
-    brightnessSlider.value = '0'
-    contrastSlider.value   = '0'
-    brightnessValue.textContent = '0'
-    contrastValue.textContent   = '0'
-
-    renderPhase(appState)
-    renderPreview(currentCrop.imageData, 0, 0)
-  })
-
-  // ─── Adjustment sliders (US2) ─────────────────────────────────────────────────
+  // ─── Adjustment sliders ────────────────────────────────────────────────────────
 
   function renderPreview(imageData: ImageData, brightness: number, contrast: number) {
     const adjusted = applyAdjustments(imageData, brightness, contrast)
@@ -247,7 +367,7 @@ import PartsList from '../components/PartsList.astro'
     if (appState.phase !== 'adjusting') return
     const val = Number(brightnessSlider.value)
     brightnessValue.textContent = String(val)
-    appState = { ...appState, brightness: val }
+    appState = onAdjustmentChanged(appState, 'brightness', val)
     renderPreview(appState.crop.imageData, val, appState.contrast)
   })
 
@@ -255,64 +375,59 @@ import PartsList from '../components/PartsList.astro'
     if (appState.phase !== 'adjusting') return
     const val = Number(contrastSlider.value)
     contrastValue.textContent = String(val)
-    appState = { ...appState, contrast: val }
+    appState = onAdjustmentChanged(appState, 'contrast', val)
     renderPreview(appState.crop.imageData, appState.brightness, val)
   })
 
   recropBtn.addEventListener('click', () => {
-    if (appState.phase !== 'adjusting' && appState.phase !== 'result') return
-    const image = appState.phase === 'adjusting'
-      ? (appState.crop as CropSelection & { _faceImage?: FaceImage })._faceImage
-      : (appState.crop as CropSelection & { _faceImage?: FaceImage })._faceImage
-
-    // Fall back to re-initializing from objectUrl stored on current crop source.
-    // Since FaceImage is not stored in adjusting state, we reset to idle so user
-    // can re-upload. A future improvement is to persist the FaceImage in AppState.
-    destroyCropper()
     clearResult()
+    stopStream()
     appState = { phase: 'idle' }
     uploadInput.value = ''
     renderPhase(appState)
   })
 
-  // ─── Mosaic generation (US3) ──────────────────────────────────────────────────
+  // ─── Mosaic generation ────────────────────────────────────────────────────────
 
   generateBtn.addEventListener('click', () => {
     if (appState.phase !== 'adjusting' && appState.phase !== 'result') return
 
     const brightness = Number(brightnessSlider.value)
     const contrast   = Number(contrastSlider.value)
-    const cropImageData = currentCrop!.imageData
-    const adjusted = applyAdjustments(cropImageData, brightness, contrast)
+    const cropData   = appState.crop as HeadCropSelection
+    const adjusted   = applyAdjustments(cropData.imageData, brightness, contrast)
 
     const adjustedImage: AdjustedImage = {
-      source: currentCrop!,
+      source: cropData,
       brightnessOffset: brightness,
       contrastOffset: contrast,
       imageData: adjusted,
     }
 
-    appState = { phase: 'generating', adjusted: adjustedImage }
+    appState = onGenerateClicked(
+      { phase: 'adjusting', crop: cropData, brightness, contrast },
+      adjustedImage,
+    )
     renderPhase(appState)
 
-    // Defer computation one frame so "Generating…" renders before CPU work starts
     requestAnimationFrame(() => {
       setTimeout(() => {
         try {
-          const mosaic = generateMosaic(adjusted, palette)
-          appState = { phase: 'result', mosaic, adjusted: adjustedImage, crop: currentCrop! }
+          const brickHeight = cropData.brickHeight ?? 32
+          const mosaic = generateMosaic(adjusted, palette, { height: brickHeight })
+          appState = onGenerateSuccess({ phase: 'generating', adjusted: adjustedImage }, mosaic)
           renderPhase(appState)
-          renderResult(mosaic, cropImageData)
+          renderResult(mosaic, cropData.imageData)
         } catch (err: unknown) {
           console.error('Mosaic generation failed:', err)
-          appState = { phase: 'adjusting', crop: currentCrop!, brightness, contrast }
+          appState = { phase: 'adjusting', crop: cropData, brightness, contrast }
           renderPhase(appState)
         }
       }, 0)
     })
   })
 
-  // ─── Result display (US3 + US4) ───────────────────────────────────────────────
+  // ─── Result display ───────────────────────────────────────────────────────────
 
   function renderResult(mosaic: Mosaic, originalImageData: ImageData) {
     renderOriginal(originalImageData)
@@ -330,7 +445,6 @@ import PartsList from '../components/PartsList.astro'
   function renderMosaicGrid(mosaic: Mosaic) {
     mosaicGrid.innerHTML = ''
     const paletteMap = new Map(palette.map(c => [c.id, c]))
-
     for (const row of mosaic.grid) {
       for (const colorId of row) {
         const color = paletteMap.get(colorId)
@@ -344,12 +458,14 @@ import PartsList from '../components/PartsList.astro'
         mosaicGrid.appendChild(cell)
       }
     }
+    // Update grid columns for variable width
+    const cols = mosaic.width
+    mosaicGrid.style.gridTemplateColumns = `repeat(${cols}, 10px)`
   }
 
   function renderColorMatrix(mosaic: Mosaic) {
     colorMatrixEl.innerHTML = ''
     const paletteMap = new Map(palette.map(c => [c.id, c]))
-
     for (const row of mosaic.grid) {
       for (const colorId of row) {
         const color = paletteMap.get(colorId)
@@ -358,7 +474,6 @@ import PartsList from '../components/PartsList.astro'
         if (color) {
           const [r, g, b] = color.rgb
           cell.style.background = `rgb(${r},${g},${b})`
-          // Short label: first 2 chars of name
           cell.textContent = color.name.slice(0, 2)
           cell.title = `${color.name} (id: ${color.id})`
         }
@@ -371,7 +486,6 @@ import PartsList from '../components/PartsList.astro'
     const parts = derivePartsList(mosaic, palette)
     totalPiecesEl.textContent = String(parts.totalPieces)
     partsListEl.innerHTML = ''
-
     for (const entry of parts.entries) {
       const li = document.createElement('li')
       li.innerHTML = `
@@ -390,8 +504,11 @@ import PartsList from '../components/PartsList.astro'
     totalPiecesEl.textContent = '0'
   }
 
-  // ─── Initial render ───────────────────────────────────────────────────────────
+  // ─── Page unload: stop camera stream ─────────────────────────────────────────
+  window.addEventListener('beforeunload', () => stopStream())
 
+  // ─── Init ─────────────────────────────────────────────────────────────────────
+  detectCameraSupport()
   renderPhase(appState)
 </script>
 
@@ -412,10 +529,7 @@ import PartsList from '../components/PartsList.astro'
     padding: 1.25rem 2rem;
   }
 
-  .header-inner {
-    max-width: 900px;
-    margin: 0 auto;
-  }
+  .header-inner { max-width: 900px; margin: 0 auto; }
 
   header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
   .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
@@ -430,4 +544,25 @@ import PartsList from '../components/PartsList.astro'
     flex-direction: column;
     gap: 2rem;
   }
+
+  #preparing-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    font-size: 1rem;
+    color: #555;
+  }
+
+  #preparing-indicator .spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #ddd;
+    border-top-color: #e87722;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

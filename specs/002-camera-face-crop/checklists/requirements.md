@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Phase 1B/1C-pre — Camera Capture and Automatic Face Height Crop
+# Specification Quality Checklist: Phase 1B/1C-pre — Camera Capture and Seeded Manual Head-Height Crop
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-05-31

@@ -1,9 +1,6 @@
 ---
-import UploadArea from '../components/UploadArea.astro'
-import CropTool from '../components/CropTool.astro'
 import AdjustmentPanel from '../components/AdjustmentPanel.astro'
 import MosaicDisplay from '../components/MosaicDisplay.astro'
-import ColorMatrix from '../components/ColorMatrix.astro'
 import PartsList from '../components/PartsList.astro'
 ---
 
@@ -25,215 +22,563 @@ import PartsList from '../components/PartsList.astro'
     </header>
 
     <main>
-      <UploadArea />
-      <CropTool />
+      <!-- Acquisition + crop panel -->
+      <section id="acquisition" aria-label="Choose and crop a photo">
+        <div class="acq-layout">
+
+          <!-- Left: choose + crop controls -->
+          <div class="acq-buttons">
+            <p class="acq-section-label">Choose Image</p>
+
+            <button id="camera-btn" type="button">Use Camera</button>
+            <label id="upload-label" class="upload-btn">
+              <span id="upload-btn-text">Upload Photo</span>
+              <input type="file" id="upload-input" accept="image/jpeg,image/jpg,image/png" aria-label="Upload a photo" />
+            </label>
+
+            <div class="acq-section-gap"></div>
+
+            <p class="acq-section-label">Crop Image</p>
+
+            <div class="crop-height-row">
+              <label for="hct-brick-height">Height</label>
+              <select id="hct-brick-height">
+                <option value="26">26 bricks</option>
+                <option value="28">28 bricks</option>
+                <option value="30">30 bricks</option>
+                <option value="32" selected>32 bricks</option>
+                <option value="34">34 bricks</option>
+                <option value="36">36 bricks</option>
+              </select>
+            </div>
+
+            <button id="use-photo-btn" type="button" disabled>Confirm Crop</button>
+            <p id="hct-notice" class="hct-notice" hidden></p>
+          </div>
+
+          <!-- Right: image/video box with integrated crop overlay -->
+          <div class="acq-box" id="acq-box">
+            <p id="acq-placeholder" class="acq-placeholder">Select<br><strong>Use Camera</strong> or <strong>Upload Photo</strong><br>on the left</p>
+            <video id="acq-video" autoplay playsinline muted aria-label="Camera viewfinder"></video>
+            <img id="acq-image" src="data:," alt="" />
+            <!-- Crop overlay (shown when image is ready for cropping) -->
+            <div id="hct-dim-top"    class="hct-dim"></div>
+            <div id="hct-dim-bottom" class="hct-dim"></div>
+            <div id="hct-dim-left"   class="hct-dim"></div>
+            <div id="hct-dim-right"  class="hct-dim"></div>
+            <div id="hct-frame"></div>
+            <div id="hct-handle-top"    class="hct-handle hct-handle-h" role="slider" aria-label="Top crop boundary"    tabindex="0"></div>
+            <div id="hct-handle-bottom" class="hct-handle hct-handle-h" role="slider" aria-label="Bottom crop boundary" tabindex="0"></div>
+            <div id="hct-handle-left"   class="hct-handle hct-handle-v" role="slider" aria-label="Left crop boundary"   tabindex="0"></div>
+            <div id="hct-handle-right"  class="hct-handle hct-handle-v" role="slider" aria-label="Right crop boundary"  tabindex="0"></div>
+          </div>
+
+        </div>
+
+        <p class="privacy-notice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Your image never leaves your device. All processing occurs in your browser.
+        </p>
+        <p id="acq-error" class="error-msg" role="alert" hidden></p>
+      </section>
+
+      <div id="preparing-indicator" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <span>Preparing image…</span>
+      </div>
+
       <AdjustmentPanel />
       <MosaicDisplay />
-      <ColorMatrix />
+
       <PartsList />
     </main>
   </body>
 </html>
 
 <script>
-  import type { AppState, FaceImage, CropSelection, AdjustedImage, Mosaic } from '../types/index.js'
+  import type { AppState, FaceImage, HeadCropSelection, HeadBounds, AdjustedImage, Mosaic, BrickHeight } from '../types/index.js'
   import type { LegoColor } from '../types/index.js'
   import { applyAdjustments } from '../lib/image/adjust.js'
   import { validateFile } from '../lib/image/validate.js'
+  import { getOrientedImageData } from '../lib/image/exif.js'
+  import { initHeadDetector, detectHeadBounds } from '../lib/image/head-detection.js'
+  import { computeCropGeometry, clampHandles, scaleToBrickHeight } from '../lib/crop/head-crop.js'
   import { generateMosaic } from '../lib/mosaic/pipeline.js'
   import { derivePartsList } from '../lib/mosaic/parts-list.js'
+  import {
+    onFileValidated, onFileValidationError,
+    onImagePrepared, onBrickHeightChanged, onHeadCropConfirmed, onResetToFullImage,
+    onAdjustmentChanged, onGenerateClicked, onGenerateSuccess, onReset,
+  } from '../lib/app-state.js'
   import PALETTE_RAW from '../data/lego-palette.json'
-  // @ts-ignore — Cropper.js v1 types may need separate @types/cropperjs install
-  import Cropper from 'cropperjs'
-  import 'cropperjs/dist/cropper.css'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
 
-  // ─── State ───────────────────────────────────────────────────────────────────
+  // ─── Unique 2-letter color abbreviations ──────────────────────────────────────
+
+  function buildColorAbbreviations(colors: LegoColor[]): Map<number, string> {
+    const used = new Set<string>()
+    const result = new Map<number, string>()
+    for (const color of colors) {
+      const words = color.name.trim().split(/\s+/)
+      const candidates: string[] = [
+        words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : color.name.slice(0, 2).toUpperCase(),
+        color.name.replace(/\s/g, '').slice(0, 2).toUpperCase(),
+        (color.name[0] + (color.name.replace(/\s/g, '')[2] ?? color.name[1])).toUpperCase(),
+        (color.name[0] + color.name[color.name.length - 1]).toUpperCase(),
+        words[words.length - 1].slice(0, 2).toUpperCase(),
+      ]
+      let abbr = candidates.find(c => c.length === 2 && !used.has(c)) ?? ''
+      if (!abbr) {
+        const az = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        outer: for (const a of az) for (const b of az) { if (!used.has(a+b)) { abbr = a+b; break outer } }
+      }
+      used.add(abbr)
+      result.set(color.id, abbr)
+    }
+    return result
+  }
+
+  const colorAbbr = buildColorAbbreviations(palette)
+
+  // ─── App state ────────────────────────────────────────────────────────────────
 
   let appState: AppState = { phase: 'idle' }
-  let cropper: InstanceType<typeof Cropper> | null = null
-  let currentCrop: CropSelection | null = null
 
-  // ─── DOM references ───────────────────────────────────────────────────────────
+  // ─── Acquisition state (local to the panel) ───────────────────────────────────
 
-  const uploadArea       = document.getElementById('upload-area')!
-  const uploadInput      = document.getElementById('upload-input') as HTMLInputElement
-  const uploadError      = document.getElementById('upload-error')!
+  type AcqMode = 'idle' | 'camera-live' | 'camera-captured' | 'file-ready'
+  let acqMode: AcqMode = 'idle'
+  let activeStream: MediaStream | null = null
+  let availableVideoDevices: MediaDeviceInfo[] = []
+  let currentDeviceIndex = 0
+  let pendingFile: File | null = null
 
-  const cropTool         = document.getElementById('crop-tool')!
-  const cropImage        = document.getElementById('crop-image') as HTMLImageElement
-  const cropError        = document.getElementById('crop-error')!
-  const cropConfirmBtn   = document.getElementById('crop-confirm') as HTMLButtonElement
-  const uploadResetBtn   = document.getElementById('upload-reset') as HTMLButtonElement
+  // ─── Head crop state ──────────────────────────────────────────────────────────
 
-  const adjustmentPanel  = document.getElementById('adjustment-panel')!
-  const previewCanvas    = document.getElementById('preview-canvas') as HTMLCanvasElement
-  const brightnessSlider = document.getElementById('brightness-slider') as HTMLInputElement
-  const contrastSlider   = document.getElementById('contrast-slider') as HTMLInputElement
-  const brightnessValue  = document.getElementById('brightness-value')!
-  const contrastValue    = document.getElementById('contrast-value')!
-  const generateBtn      = document.getElementById('generate-button') as HTMLButtonElement
-  const recropBtn        = document.getElementById('recrop-button') as HTMLButtonElement
+  let correctedImageData: ImageData | null = null  // EXIF-corrected pixels
+  let hctTopPx    = 0    // handle positions in CSS display pixels
+  let hctBotPx    = 0
+  let hctLeftPx   = 0
+  let hctRightPx  = 0
+  let hctDragging: 'top' | 'bottom' | 'left' | 'right' | null = null
+  let hctDragStartX   = 0
+  let hctDragStartY   = 0
+  let hctDragStartTop = 0
+  let hctDragStartBot = 0
+  let hctDragStartLeft  = 0
+  let hctDragStartRight = 0
+
+  // ─── DOM — acquisition ────────────────────────────────────────────────────────
+
+  const acquisitionEl   = document.getElementById('acquisition')!
+  const cameraBtnEl     = document.getElementById('camera-btn') as HTMLButtonElement
+  const uploadLabelEl   = document.getElementById('upload-label')!
+  const uploadBtnText   = document.getElementById('upload-btn-text')!
+  const uploadInput     = document.getElementById('upload-input') as HTMLInputElement
+  const usePhotoBtnEl   = document.getElementById('use-photo-btn') as HTMLButtonElement
+  const acqBox          = document.getElementById('acq-box')!
+  const acqPlaceholder  = document.getElementById('acq-placeholder')!
+  const acqVideo        = document.getElementById('acq-video') as HTMLVideoElement
+  const acqImage        = document.getElementById('acq-image') as HTMLImageElement
+  const acqError        = document.getElementById('acq-error')!
+
+  // ─── DOM — downstream ─────────────────────────────────────────────────────────
+
+  // ─── DOM — HeadCropTool ───────────────────────────────────────────────────────
+
+  // HeadCropTool is now embedded in acq-box; use acqImage/acqBox directly
+  const hctDimTop       = document.getElementById('hct-dim-top')!
+  const hctDimBottom    = document.getElementById('hct-dim-bottom')!
+  const hctDimLeft      = document.getElementById('hct-dim-left')!
+  const hctDimRight     = document.getElementById('hct-dim-right')!
+  const hctFrame        = document.getElementById('hct-frame')!
+  const hctHandleTop    = document.getElementById('hct-handle-top')!
+  const hctHandleBottom = document.getElementById('hct-handle-bottom')!
+  const hctHandleLeft   = document.getElementById('hct-handle-left')!
+  const hctHandleRight  = document.getElementById('hct-handle-right')!
+  const hctBrickHeight  = document.getElementById('hct-brick-height') as HTMLSelectElement
+  const hctNotice       = document.getElementById('hct-notice')!
+
+  const adjustmentPanel   = document.getElementById('adjustment-panel')!
+  const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
+  const brightnessSlider  = document.getElementById('brightness-slider') as HTMLInputElement
+  const contrastSlider    = document.getElementById('contrast-slider') as HTMLInputElement
+  const brightnessValue   = document.getElementById('brightness-value')!
+  const contrastValue     = document.getElementById('contrast-value')!
+  const generateBtn       = document.getElementById('generate-button') as HTMLButtonElement
+  const recropBtn         = document.getElementById('recrop-button') as HTMLButtonElement
   const progressIndicator = document.getElementById('progress-indicator')!
-  const progressMessage  = document.getElementById('progress-message')!
 
-  const mosaicDisplay    = document.getElementById('mosaic-display')!
-  const mosaicGrid       = document.getElementById('mosaic-grid')!
-  const originalCanvas   = document.getElementById('original-canvas') as HTMLCanvasElement
+  const mosaicDisplay     = document.getElementById('mosaic-display')!
+  const mosaicGrid        = document.getElementById('mosaic-grid')!
+  const originalCanvas    = document.getElementById('original-canvas') as HTMLCanvasElement
 
-  const colorMatrixSection = document.getElementById('color-matrix-section')!
-  const colorMatrixEl    = document.getElementById('color-matrix')!
+  const colorMatrixEl     = document.getElementById('color-matrix')!  // now inside #mosaic-display
 
-  const partsListSection = document.getElementById('parts-list-section')!
-  const partsListEl      = document.getElementById('parts-list')!
-  const totalPiecesEl    = document.getElementById('total-pieces')!
+  const partsListSection  = document.getElementById('parts-list-section')!
+  const partsListEl       = document.getElementById('parts-list')!
+  const totalPiecesEl     = document.getElementById('total-pieces')!
 
-  // ─── Visibility helper ────────────────────────────────────────────────────────
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
 
   function show(el: HTMLElement) { el.hidden = false }
-  function hide(el: HTMLElement) { el.hidden = true  }
+  function hide(el: HTMLElement) { el.hidden = true }
+
+  function showAcqError(msg: string) { acqError.textContent = msg; acqError.hidden = false }
+  function clearAcqError() { acqError.textContent = ''; acqError.hidden = true }
+
+  // ─── Acquisition panel state ──────────────────────────────────────────────────
+
+  function setAcqMode(mode: AcqMode) {
+    acqMode = mode
+    clearAcqError()
+
+    cameraBtnEl.textContent =
+      mode === 'camera-live'     ? 'Take Photo'    :
+      mode === 'camera-captured' ? 'Retake Photo'  : 'Use Camera'
+
+    uploadBtnText.textContent =
+      mode === 'file-ready' ? 'Reupload Photo' : 'Upload Photo'
+
+    usePhotoBtnEl.disabled = mode !== 'camera-captured' && mode !== 'file-ready'
+
+    // show/hide exactly one child at a time
+    acqPlaceholder.hidden = mode !== 'idle'
+    acqVideo.hidden       = mode !== 'camera-live'
+    acqImage.hidden       = mode === 'idle' || mode === 'camera-live'
+  }
+
+  // ─── Camera ───────────────────────────────────────────────────────────────────
+
+  async function startCamera(deviceId?: string) {
+    try {
+      stopStream()
+      const constraints: MediaStreamConstraints = {
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' },
+      }
+      activeStream = await navigator.mediaDevices.getUserMedia(constraints)
+      acqVideo.srcObject = activeStream
+      setAcqMode('camera-live')
+    } catch (err: unknown) {
+      const name = err instanceof DOMException ? err.name : ''
+      const msg = name === 'NotAllowedError'
+        ? 'Camera access denied. Click the camera icon in your browser\'s address bar to re-enable.'
+        : name === 'NotFoundError'
+        ? 'No camera found on this device.'
+        : 'Could not start camera. Try uploading a file instead.'
+      showAcqError(msg)
+    }
+  }
+
+  function capturePhoto() {
+    const canvas = document.createElement('canvas')
+    canvas.width  = acqVideo.videoWidth
+    canvas.height = acqVideo.videoHeight
+    canvas.getContext('2d')!.drawImage(acqVideo, 0, 0)
+    canvas.toBlob(blob => {
+      if (!blob) return
+      stopStream()
+      pendingFile = new File([blob], 'capture.jpg', { type: 'image/jpeg' })
+      acqImage.src = URL.createObjectURL(blob)
+      setAcqMode('camera-captured')
+      autoPrepareCrop()
+    }, 'image/jpeg', 0.92)
+  }
+
+  function stopStream() {
+    activeStream?.getTracks().forEach(t => t.stop())
+    activeStream = null
+  }
+
+  // Check if camera is available and update button visibility
+  async function detectCameraSupport() {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      availableVideoDevices = devices.filter(d => d.kind === 'videoinput')
+    } catch { /* camera unavailable — button still visible but will show error */ }
+  }
+
+  // ─── Button events ────────────────────────────────────────────────────────────
+
+  cameraBtnEl.addEventListener('click', async () => {
+    if (acqMode === 'idle' || acqMode === 'file-ready') {
+      await startCamera(availableVideoDevices[currentDeviceIndex]?.deviceId)
+    } else if (acqMode === 'camera-live') {
+      capturePhoto()
+    } else if (acqMode === 'camera-captured') {
+      await startCamera(availableVideoDevices[currentDeviceIndex]?.deviceId)
+    }
+  })
+
+  uploadInput.addEventListener('change', () => {
+    const file = uploadInput.files?.[0]
+    if (!file) return
+    stopStream()
+    pendingFile = file
+    acqImage.src = URL.createObjectURL(file)
+    setAcqMode('file-ready')
+    autoPrepareCrop()
+  })
+
+  // "Confirm Crop" — extract the crop at current handle positions and proceed
+  usePhotoBtnEl.addEventListener('click', () => {
+    if (!correctedImageData) return
+    const iW = correctedImageData.width
+    const iH = correctedImageData.height
+    const dW = acqImage.offsetWidth
+    const dH = acqImage.offsetHeight
+    if (!dW || !dH) return
+
+    const topY    = Math.round(hctTopPx  / dH * iH)
+    const bottomY = Math.round(hctBotPx  / dH * iH)
+    const leftX   = Math.round(hctLeftPx / dW * iW)
+    const rightX  = Math.round(hctRightPx/ dW * iW)
+    const cropWidthPx  = Math.max(1, rightX  - leftX)
+    const cropHeightPx = Math.max(1, bottomY - topY)
+    const bh = Math.max(1, Math.round(32 * cropHeightPx / cropWidthPx)) as BrickHeight
+
+    const srcCanvas  = document.createElement('canvas')
+    srcCanvas.width  = iW; srcCanvas.height = iH
+    srcCanvas.getContext('2d')!.putImageData(correctedImageData, 0, 0)
+    const cropCanvas  = document.createElement('canvas')
+    cropCanvas.width  = cropWidthPx; cropCanvas.height = cropHeightPx
+    cropCanvas.getContext('2d')!.drawImage(srcCanvas, -leftX, -topY)
+    const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
+
+    const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
+    appState = onHeadCropConfirmed(appState as { phase: 'head-cropping' }, crop)
+    hideCropOverlay()
+    renderPhase(appState)
+    renderPreview(cropImageData, 0, 0)
+    brightnessSlider.value = '0'; contrastSlider.value = '0'
+    brightnessValue.textContent = '0'; contrastValue.textContent = '0'
+  })
+
+  // ─── Crop overlay (embedded in acq-box) ──────────────────────────────────────
+
+  async function autoPrepareCrop(): Promise<void> {
+    if (!pendingFile) return
+    usePhotoBtnEl.disabled = true
+    clearAcqError()
+    hideCropOverlay()
+    const preparingEl = document.getElementById('preparing-indicator')!
+    show(preparingEl)
+    try {
+      correctedImageData = await getOrientedImageData(pendingFile)
+      // Replace acq-image src with EXIF-corrected version
+      const tmpCanvas = document.createElement('canvas')
+      tmpCanvas.width  = correctedImageData.width
+      tmpCanvas.height = correctedImageData.height
+      tmpCanvas.getContext('2d')!.putImageData(correctedImageData, 0, 0)
+      tmpCanvas.toBlob(blob => {
+        if (!blob) return
+        acqImage.src = URL.createObjectURL(blob)
+        acqImage.onload = () => {
+          // Box: expand to natural image ratio so image fills without letterboxing
+          acqBox.classList.add('crop-active')
+          acqImage.style.cssText = 'display:block;width:100%;height:auto;'
+        }
+      })
+      await initHeadDetector()
+      const headBounds = detectHeadBounds(correctedImageData)
+      // Wait one frame for image layout before seeding handles
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      seedHandles(correctedImageData, headBounds)
+      usePhotoBtnEl.disabled = false
+    } catch (err: unknown) {
+      showAcqError(err instanceof Error ? err.message : 'Failed to prepare image')
+    } finally {
+      hide(preparingEl)
+    }
+  }
+
+  function seedHandles(imgData: ImageData, headBounds: HeadBounds): void {
+    const W = acqImage.offsetWidth
+    const H = acqImage.offsetHeight
+    const found = headBounds.detectionStatus === 'found'
+    hctTopPx   = found ? Math.max(0, Math.round(headBounds.topY    / imgData.height * H)) : 0
+    hctBotPx   = found ? Math.min(H, Math.round(headBounds.bottomY / imgData.height * H)) : H
+    hctLeftPx  = (found && headBounds.leftX  != null) ? Math.max(0, Math.round(headBounds.leftX  / imgData.width * W)) : 0
+    hctRightPx = (found && headBounds.rightX != null) ? Math.min(W, Math.round(headBounds.rightX / imgData.width * W)) : W
+    if (headBounds.detectionStatus !== 'found') {
+      hctNotice.textContent = headBounds.detectionStatus === 'too-small'
+        ? 'Detection too small — handles set to full image.' : 'Head not detected — adjust handles manually.'
+      hctNotice.hidden = false
+    } else {
+      hctNotice.hidden = true
+    }
+    showCropOverlay()
+    updateHctOverlay()
+  }
+
+  function showCropOverlay(): void {
+    [hctDimTop, hctDimBottom, hctDimLeft, hctDimRight, hctFrame,
+     hctHandleTop, hctHandleBottom, hctHandleLeft, hctHandleRight
+    ].forEach(el => { el.hidden = false })
+  }
+
+  function hideCropOverlay(): void {
+    [hctDimTop, hctDimBottom, hctDimLeft, hctDimRight, hctFrame,
+     hctHandleTop, hctHandleBottom, hctHandleLeft, hctHandleRight
+    ].forEach(el => { el.hidden = true })
+    acqBox.classList.remove('crop-active')
+    acqImage.style.cssText = ''
+  }
+
+  function updateHctOverlay(): void {
+    const W   = acqImage.offsetWidth
+    const H   = acqImage.offsetHeight
+    const lx  = hctLeftPx
+    const rx  = hctRightPx
+    const cropW = rx - lx
+    const cropH = hctBotPx - hctTopPx
+
+    // Dim regions
+    hctDimTop.style.cssText    = `left:0;top:0;width:100%;height:${hctTopPx}px`
+    hctDimBottom.style.cssText = `left:0;top:${hctBotPx}px;width:100%;height:${H - hctBotPx}px`
+    hctDimLeft.style.cssText   = `left:0;top:${hctTopPx}px;width:${lx}px;height:${cropH}px`
+    hctDimRight.style.cssText  = `left:${rx}px;top:${hctTopPx}px;width:${W - rx}px;height:${cropH}px`
+
+    // Crop frame border
+    hctFrame.style.cssText = `left:${lx}px;top:${hctTopPx}px;width:${cropW}px;height:${cropH}px`
+
+    // Horizontal handles (top/bottom crop lines)
+    hctHandleTop.style.cssText    = `left:0;right:0;top:${hctTopPx - 12}px;height:24px`
+    hctHandleBottom.style.cssText = `left:0;right:0;top:${hctBotPx - 12}px;height:24px`
+
+    // Vertical handles (left/right crop lines), spanning the crop height
+    hctHandleLeft.style.cssText  = `left:${lx - 12}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
+    hctHandleRight.style.cssText = `left:${rx - 12}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
+  }
+
+  // Drag interaction
+  hctHandleTop.addEventListener('pointerdown', e => {
+    hctDragging = 'top'; hctDragStartY = e.clientY; hctDragStartTop = hctTopPx
+    hctHandleTop.setPointerCapture(e.pointerId)
+  })
+  hctHandleBottom.addEventListener('pointerdown', e => {
+    hctDragging = 'bottom'; hctDragStartY = e.clientY; hctDragStartBot = hctBotPx
+    hctHandleBottom.setPointerCapture(e.pointerId)
+  })
+  hctHandleLeft.addEventListener('pointerdown', e => {
+    hctDragging = 'left'; hctDragStartX = e.clientX; hctDragStartLeft = hctLeftPx
+    hctHandleLeft.setPointerCapture(e.pointerId)
+  })
+  hctHandleRight.addEventListener('pointerdown', e => {
+    hctDragging = 'right'; hctDragStartX = e.clientX; hctDragStartRight = hctRightPx
+    hctHandleRight.setPointerCapture(e.pointerId)
+  })
+
+  acqBox.addEventListener('pointermove', e => {
+    if (!hctDragging) return
+    const W   = acqImage.offsetWidth
+    const H   = acqImage.offsetHeight
+    const MIN = 100
+
+    if (hctDragging === 'top') {
+      hctTopPx = Math.max(0, Math.min(hctDragStartTop + (e.clientY - hctDragStartY), hctBotPx - MIN))
+    } else if (hctDragging === 'bottom') {
+      hctBotPx = Math.max(hctTopPx + MIN, Math.min(hctDragStartBot + (e.clientY - hctDragStartY), H))
+    } else if (hctDragging === 'left') {
+      hctLeftPx = Math.max(0, Math.min(hctDragStartLeft + (e.clientX - hctDragStartX), hctRightPx - MIN))
+    } else if (hctDragging === 'right') {
+      hctRightPx = Math.max(hctLeftPx + MIN, Math.min(hctDragStartRight + (e.clientX - hctDragStartX), W))
+    }
+    updateHctOverlay()
+  })
+
+  acqBox.addEventListener('pointerup',     () => { hctDragging = null })
+  acqBox.addEventListener('pointercancel', () => { hctDragging = null })
+
+  // Brick height change — only updates mosaic output height, not the crop handles
+  hctBrickHeight.addEventListener('change', () => {
+    if (appState.phase !== 'head-cropping') return
+    const bh = Number(hctBrickHeight.value) as BrickHeight
+    appState = onBrickHeightChanged(
+      appState as { phase: 'head-cropping'; image: FaceImage; headBounds: HeadBounds; brickHeight: BrickHeight },
+      bh,
+    )
+  })
+
+  // Confirm crop
+  hctConfirmBtn.addEventListener('click', () => {
+    if (!correctedImageData || appState.phase !== 'head-cropping') return
+    const iW = correctedImageData.width
+    const iH = correctedImageData.height
+    const dW = acqImage.offsetWidth
+    const dH = acqImage.offsetHeight
+    const topY    = Math.round(hctTopPx  / dH * iH)
+    const bottomY = Math.round(hctBotPx  / dH * iH)
+    const leftX   = Math.round(hctLeftPx / dW * iW)
+    const rightX  = Math.round(hctRightPx/ dW * iW)
+    const cropWidthPx  = rightX  - leftX
+    const cropHeightPx = bottomY - topY
+
+    // Derive brick height from the crop's actual aspect ratio so the mosaic
+    // proportions match what the user cropped. (32 bricks wide is fixed.)
+    const bh = Math.max(1, Math.round(32 * cropHeightPx / cropWidthPx)) as BrickHeight
+
+    // Extract the crop from the EXIF-corrected pixel data
+    const cropCanvas = document.createElement('canvas')
+    cropCanvas.width  = cropWidthPx
+    cropCanvas.height = cropHeightPx
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width  = iW
+    srcCanvas.height = iH
+    srcCanvas.getContext('2d')!.putImageData(correctedImageData, 0, 0)
+    cropCanvas.getContext('2d')!.drawImage(srcCanvas, -leftX, -topY)
+    const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
+
+    const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
+    appState = onHeadCropConfirmed(appState as { phase: 'head-cropping' }, crop)
+    renderPhase(appState)
+    renderPreview(cropImageData, 0, 0)
+    brightnessSlider.value = '0'; contrastSlider.value = '0'
+    brightnessValue.textContent = '0'; contrastValue.textContent = '0'
+  })
+
+  // ─── App phase rendering ──────────────────────────────────────────────────────
 
   function renderPhase(state: AppState) {
-    hide(uploadArea); hide(cropTool); hide(adjustmentPanel)
-    hide(mosaicDisplay); hide(colorMatrixSection); hide(partsListSection)
-    clearError(uploadError); clearError(cropError)
+    hide(adjustmentPanel)
+    hide(mosaicDisplay); hide(partsListSection)
 
     switch (state.phase) {
       case 'idle':
       case 'uploading':
-        show(uploadArea)
-        break
       case 'upload-error':
-        show(uploadArea)
-        showError(uploadError, state.error)
+      case 'camera-viewfinder':
+      case 'camera-preview':
+      case 'camera-error':
+      case 'preparing':
+      case 'head-cropping':
+      case 'head-crop-error':
+        show(acquisitionEl)
         break
-      case 'cropping':
-      case 'crop-error':
-        show(cropTool)
-        if (state.phase === 'crop-error') showError(cropError, state.error)
-        break
+
       case 'adjusting':
       case 'generating':
         show(adjustmentPanel)
-        generateBtn.disabled = state.phase === 'generating'
+        generateBtn.disabled  = state.phase === 'generating'
         progressIndicator.hidden = state.phase !== 'generating'
         break
+
       case 'result':
         show(adjustmentPanel)
         show(mosaicDisplay)
-        show(colorMatrixSection)
         show(partsListSection)
-        generateBtn.disabled = false
+        generateBtn.disabled  = false
         progressIndicator.hidden = true
         break
     }
   }
 
-  function showError(el: HTMLElement, msg: string) {
-    el.textContent = msg
-    el.hidden = false
-  }
-
-  function clearError(el: HTMLElement) {
-    el.textContent = ''
-    el.hidden = true
-  }
-
-  // ─── Upload flow (US1) ────────────────────────────────────────────────────────
-
-  uploadInput.addEventListener('change', async () => {
-    const file = uploadInput.files?.[0]
-    if (!file) return
-
-    appState = { phase: 'uploading' }
-    renderPhase(appState)
-
-    try {
-      const image: FaceImage = await validateFile(file)
-      appState = { phase: 'cropping', image }
-      renderPhase(appState)
-      initCropper(image)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load image'
-      appState = { phase: 'upload-error', error: msg }
-      renderPhase(appState)
-      uploadInput.value = ''
-    }
-  })
-
-  uploadResetBtn.addEventListener('click', () => {
-    destroyCropper()
-    if (appState.phase === 'cropping' || appState.phase === 'crop-error') {
-      URL.revokeObjectURL(appState.image.objectUrl)
-    }
-    appState = { phase: 'idle' }
-    uploadInput.value = ''
-    renderPhase(appState)
-  })
-
-  function initCropper(image: FaceImage) {
-    cropImage.src = image.objectUrl
-    cropImage.onload = () => {
-      if (cropper) cropper.destroy()
-      cropper = new Cropper(cropImage, {
-        aspectRatio: 1,
-        viewMode: 1,
-        minCropBoxWidth: 100,
-        minCropBoxHeight: 100,
-        dragMode: 'move',
-        autoCropArea: 0.8,
-      })
-    }
-  }
-
-  function destroyCropper() {
-    if (cropper) { cropper.destroy(); cropper = null }
-  }
-
-  cropConfirmBtn.addEventListener('click', () => {
-    if (!cropper || appState.phase !== 'cropping' && appState.phase !== 'crop-error') return
-
-    const cropData = cropper.getData(true)
-    if (cropData.width < 100 || cropData.height < 100) {
-      if (appState.phase === 'cropping' || appState.phase === 'crop-error') {
-        appState = { phase: 'crop-error', image: appState.image, error: 'Selection is too small. Please choose a region of at least 100×100 pixels.' }
-        renderPhase(appState)
-      }
-      return
-    }
-
-    const croppedCanvas = cropper.getCroppedCanvas({ width: 320, height: 320 })
-    const ctx = croppedCanvas.getContext('2d')!
-    const imageData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height)
-
-    currentCrop = {
-      x: cropData.x,
-      y: cropData.y,
-      widthPx: cropData.width,
-      heightPx: cropData.height,
-      imageData,
-    }
-
-    destroyCropper()
-
-    appState = {
-      phase: 'adjusting',
-      crop: currentCrop,
-      brightness: 0,
-      contrast: 0,
-    }
-
-    brightnessSlider.value = '0'
-    contrastSlider.value   = '0'
-    brightnessValue.textContent = '0'
-    contrastValue.textContent   = '0'
-
-    renderPhase(appState)
-    renderPreview(currentCrop.imageData, 0, 0)
-  })
-
-  // ─── Adjustment sliders (US2) ─────────────────────────────────────────────────
+  // ─── Adjustment sliders ───────────────────────────────────────────────────────
 
   function renderPreview(imageData: ImageData, brightness: number, contrast: number) {
     const adjusted = applyAdjustments(imageData, brightness, contrast)
@@ -247,7 +592,7 @@ import PartsList from '../components/PartsList.astro'
     if (appState.phase !== 'adjusting') return
     const val = Number(brightnessSlider.value)
     brightnessValue.textContent = String(val)
-    appState = { ...appState, brightness: val }
+    appState = onAdjustmentChanged(appState, 'brightness', val)
     renderPreview(appState.crop.imageData, val, appState.contrast)
   })
 
@@ -255,86 +600,90 @@ import PartsList from '../components/PartsList.astro'
     if (appState.phase !== 'adjusting') return
     const val = Number(contrastSlider.value)
     contrastValue.textContent = String(val)
-    appState = { ...appState, contrast: val }
+    appState = onAdjustmentChanged(appState, 'contrast', val)
     renderPreview(appState.crop.imageData, appState.brightness, val)
   })
 
   recropBtn.addEventListener('click', () => {
-    if (appState.phase !== 'adjusting' && appState.phase !== 'result') return
-    const image = appState.phase === 'adjusting'
-      ? (appState.crop as CropSelection & { _faceImage?: FaceImage })._faceImage
-      : (appState.crop as CropSelection & { _faceImage?: FaceImage })._faceImage
-
-    // Fall back to re-initializing from objectUrl stored on current crop source.
-    // Since FaceImage is not stored in adjusting state, we reset to idle so user
-    // can re-upload. A future improvement is to persist the FaceImage in AppState.
-    destroyCropper()
+    stopStream()
+    hideCropOverlay()
     clearResult()
-    appState = { phase: 'idle' }
+    correctedImageData = null
+    pendingFile = null
     uploadInput.value = ''
+    setAcqMode('idle')
+    appState = onReset(appState)
+    show(acquisitionEl)
     renderPhase(appState)
   })
 
-  // ─── Mosaic generation (US3) ──────────────────────────────────────────────────
+  // ─── Mosaic generation ────────────────────────────────────────────────────────
 
   generateBtn.addEventListener('click', () => {
     if (appState.phase !== 'adjusting' && appState.phase !== 'result') return
 
     const brightness = Number(brightnessSlider.value)
     const contrast   = Number(contrastSlider.value)
-    const cropImageData = currentCrop!.imageData
-    const adjusted = applyAdjustments(cropImageData, brightness, contrast)
+    const crop       = appState.crop as HeadCropSelection
+    const adjusted   = applyAdjustments(crop.imageData, brightness, contrast)
 
     const adjustedImage: AdjustedImage = {
-      source: currentCrop!,
+      source: crop,
       brightnessOffset: brightness,
       contrastOffset: contrast,
       imageData: adjusted,
     }
 
-    appState = { phase: 'generating', adjusted: adjustedImage }
+    appState = onGenerateClicked(
+      { phase: 'adjusting', crop, brightness, contrast },
+      adjustedImage,
+    )
     renderPhase(appState)
 
-    // Defer computation one frame so "Generating…" renders before CPU work starts
     requestAnimationFrame(() => {
       setTimeout(() => {
         try {
-          const mosaic = generateMosaic(adjusted, palette)
-          appState = { phase: 'result', mosaic, adjusted: adjustedImage, crop: currentCrop! }
+          const mosaic = generateMosaic(adjusted, palette, { height: crop.brickHeight ?? 32 })
+          appState = onGenerateSuccess({ phase: 'generating', adjusted: adjustedImage }, mosaic)
           renderPhase(appState)
-          renderResult(mosaic, cropImageData)
+          renderResult(mosaic, crop.imageData)
         } catch (err: unknown) {
           console.error('Mosaic generation failed:', err)
-          appState = { phase: 'adjusting', crop: currentCrop!, brightness, contrast }
+          appState = { phase: 'adjusting', crop, brightness, contrast }
           renderPhase(appState)
         }
       }, 0)
     })
   })
 
-  // ─── Result display (US3 + US4) ───────────────────────────────────────────────
+  // ─── Result ───────────────────────────────────────────────────────────────────
 
   function renderResult(mosaic: Mosaic, originalImageData: ImageData) {
-    renderOriginal(originalImageData)
-    renderMosaicGrid(mosaic)
+    renderMosaicGrid(mosaic)             // sets display height first
+    renderOriginal(originalImageData, mosaic)
     renderColorMatrix(mosaic)
     renderPartsList(mosaic)
   }
 
-  function renderOriginal(imageData: ImageData) {
+  function renderOriginal(imageData: ImageData, mosaic: Mosaic) {
     originalCanvas.width  = imageData.width
     originalCanvas.height = imageData.height
     originalCanvas.getContext('2d')!.putImageData(imageData, 0, 0)
+    // Match the CSS display height to the mosaic grid height
+    const displayH = mosaic.height * 10
+    originalCanvas.style.height = displayH + 'px'
+    originalCanvas.style.width  = Math.round(displayH * imageData.width / imageData.height) + 'px'
   }
 
   function renderMosaicGrid(mosaic: Mosaic) {
     mosaicGrid.innerHTML = ''
+    mosaicGrid.style.gridTemplateColumns = `repeat(${mosaic.width}, 10px)`
+    mosaicGrid.style.gridTemplateRows    = `repeat(${mosaic.height}, 10px)`
     const paletteMap = new Map(palette.map(c => [c.id, c]))
-
     for (const row of mosaic.grid) {
       for (const colorId of row) {
         const color = paletteMap.get(colorId)
-        const cell = document.createElement('div')
+        const cell  = document.createElement('div')
         cell.className = 'mosaic-cell'
         if (color) {
           const [r, g, b] = color.rgb
@@ -348,18 +697,18 @@ import PartsList from '../components/PartsList.astro'
 
   function renderColorMatrix(mosaic: Mosaic) {
     colorMatrixEl.innerHTML = ''
+    colorMatrixEl.style.gridTemplateColumns = `repeat(${mosaic.width}, 10px)`
+    colorMatrixEl.style.gridTemplateRows    = `repeat(${mosaic.height}, 10px)`
     const paletteMap = new Map(palette.map(c => [c.id, c]))
-
     for (const row of mosaic.grid) {
       for (const colorId of row) {
         const color = paletteMap.get(colorId)
-        const cell = document.createElement('div')
+        const cell  = document.createElement('div')
         cell.className = 'matrix-cell'
         if (color) {
           const [r, g, b] = color.rgb
           cell.style.background = `rgb(${r},${g},${b})`
-          // Short label: first 2 chars of name
-          cell.textContent = color.name.slice(0, 2)
+          cell.textContent = colorAbbr.get(color.id) ?? color.name.slice(0, 2).toUpperCase()
           cell.title = `${color.name} (id: ${color.id})`
         }
         colorMatrixEl.appendChild(cell)
@@ -371,7 +720,6 @@ import PartsList from '../components/PartsList.astro'
     const parts = derivePartsList(mosaic, palette)
     totalPiecesEl.textContent = String(parts.totalPieces)
     partsListEl.innerHTML = ''
-
     for (const entry of parts.entries) {
       const li = document.createElement('li')
       li.innerHTML = `
@@ -390,8 +738,14 @@ import PartsList from '../components/PartsList.astro'
     totalPiecesEl.textContent = '0'
   }
 
-  // ─── Initial render ───────────────────────────────────────────────────────────
+  // ─── Cleanup on unload ────────────────────────────────────────────────────────
 
+  window.addEventListener('beforeunload', () => stopStream())
+
+  // ─── Init ─────────────────────────────────────────────────────────────────────
+
+  detectCameraSupport()
+  setAcqMode('idle')
   renderPhase(appState)
 </script>
 
@@ -406,17 +760,8 @@ import PartsList from '../components/PartsList.astro'
     min-height: 100vh;
   }
 
-  header {
-    background: #1a1a2e;
-    color: white;
-    padding: 1.25rem 2rem;
-  }
-
-  .header-inner {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
+  header { background: #1a1a2e; color: white; padding: 1.25rem 2rem; }
+  .header-inner { max-width: 900px; margin: 0 auto; }
   header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
   .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
   .more-info { display: inline-block; margin-top: 0.5rem; font-size: 0.8rem; color: #e87722; text-decoration: none; }
@@ -429,5 +774,175 @@ import PartsList from '../components/PartsList.astro'
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+
+  /* ── Acquisition panel ── */
+  #acquisition { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  /* ensure hidden attribute always wins even when element has display: block */
+  [hidden] { display: none !important; }
+
+  .acq-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .acq-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 180px;
+  }
+
+  .acq-buttons button,
+  .upload-btn {
+    display: block;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  #camera-btn        { background: #e87722; color: white; }
+  #camera-btn:hover  { background: #d06b1a; }
+
+  .upload-btn        { background: #eee; color: #333; }
+  .upload-btn:hover  { background: #ddd; }
+
+  .upload-btn input[type="file"] {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0; overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  #use-photo-btn          { background: #2c6e49; color: white; }
+  #use-photo-btn:hover:not(:disabled) { background: #1f5235; }
+  #use-photo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Section labels + spacer ── */
+  .acq-section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin: 0;
+  }
+
+  .acq-section-gap { height: 0.6rem; }
+
+  .crop-height-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    color: #444;
+  }
+
+  .crop-height-row label { font-weight: 600; }
+
+  #hct-brick-height {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .hct-notice {
+    font-size: 0.8rem;
+    color: #7a6000;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    margin: 0;
+  }
+
+  /* ── Image box ── */
+  .acq-box {
+    flex: 1;
+    min-width: 240px;
+    max-width: 580px;
+    aspect-ratio: 4/3;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    background: #f0f0f0;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* In crop mode the box expands to the image's natural ratio (set via JS) */
+  .acq-box.crop-active { aspect-ratio: unset; }
+
+  .acq-placeholder { color: #aaa; font-size: 0.9rem; margin: 0; text-align: center; padding: 1rem; }
+
+  #acq-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #acq-image {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  /* Crop overlay elements */
+  .hct-dim {
+    position: absolute;
+    background: rgba(0,0,0,0.52);
+    pointer-events: none;
+  }
+
+  #hct-frame {
+    position: absolute;
+    border: 2px solid rgba(255,255,255,0.85);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+    pointer-events: none;
+  }
+
+  .hct-handle { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; }
+  .hct-handle-h { left: 0; right: 0; height: 24px; cursor: ns-resize; }
+  .hct-handle-v { width: 24px; cursor: ew-resize; }
+  .hct-handle-h::after { content:''; display:block; width:52px; height:7px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4); }
+  .hct-handle-v::after { content:''; display:block; width:7px; height:52px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4); }
+
+  /* ── Privacy notice & error ── */
+  .privacy-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #4a7c59;
+    background: #edf7f0;
+    border: 1px solid #c3e6cb;
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    width: fit-content;
+  }
+
+  .error-msg {
+    color: #c0392b;
+    background: #fdf0ee;
+    border: 1px solid #f5c6c0;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
   }
 </style>

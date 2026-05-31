@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { generateMosaic } from '../../src/lib/mosaic/pipeline.js'
-import type { LegoColor } from '../../src/types/index.js'
+import type { LegoColor, BrickHeight } from '../../src/types/index.js'
 import PALETTE from '../../src/data/lego-palette.json'
 
 const palette = PALETTE as LegoColor[]
@@ -28,7 +28,7 @@ function makeSolidWhite(size = 256): ImageData {
 }
 
 describe('generateMosaic regression', () => {
-  it('produces a 32×32 grid', () => {
+  it('produces a 32×32 grid at default height', () => {
     const mosaic = generateMosaic(makeRainbowGradient(), palette)
     expect(mosaic.grid.length).toBe(32)
     expect(mosaic.grid.every(row => row.length === 32)).toBe(true)
@@ -64,4 +64,34 @@ describe('generateMosaic regression', () => {
       '__snapshots__/mosaic-32x32.snap.json',
     )
   })
+
+  // Variable height tests (SC-006)
+  const extraHeights: BrickHeight[] = [26, 28, 34, 36]
+
+  for (const h of extraHeights) {
+    it(`produces a 32×${h} grid for height ${h}`, () => {
+      const mosaic = generateMosaic(makeRainbowGradient(), palette, { height: h })
+      expect(mosaic.grid.length).toBe(h)
+      expect(mosaic.grid.every(row => row.length === 32)).toBe(true)
+      expect(mosaic.width).toBe(32)
+      expect(mosaic.height).toBe(h)
+    })
+
+    it(`height ${h}: every cell ID is in the palette`, () => {
+      const idSet = new Set(palette.map(c => c.id))
+      const mosaic = generateMosaic(makeRainbowGradient(), palette, { height: h })
+      for (const row of mosaic.grid) {
+        for (const id of row) {
+          expect(idSet.has(id)).toBe(true)
+        }
+      }
+    })
+
+    it(`height ${h}: snapshot produces stable output`, async () => {
+      const mosaic = generateMosaic(makeRainbowGradient(), palette, { height: h })
+      await expect(JSON.stringify(mosaic.grid, null, 2)).toMatchFileSnapshot(
+        `__snapshots__/mosaic-32x${h}.snap.json`,
+      )
+    })
+  }
 })

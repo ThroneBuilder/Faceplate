@@ -43,6 +43,8 @@ export interface CapturedPhoto {
 export interface HeadBounds {
   topY: number
   bottomY: number
+  leftX?: number   // detected left face edge (image pixels); undefined = use full width
+  rightX?: number  // detected right face edge (image pixels); undefined = use full width
   detectionStatus: 'found' | 'not-found' | 'too-small'
   landmarkData?: unknown
 }

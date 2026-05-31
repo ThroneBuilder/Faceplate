@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-31
 
-**Status**: Draft
+**Status**: Complete
 
 **Input**: User description: "Phase 1B camera capture (camera primary in UI, upload always available as secondary). Phase 1C pre-candidate: detect head bounds (top of skull to bottom of chin), seed a manual crop interface with those handles so the user can adjust, and include a brick height selector (32/30/28/26) that sets the crop aspect ratio."
 

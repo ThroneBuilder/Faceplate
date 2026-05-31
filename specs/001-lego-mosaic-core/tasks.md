@@ -157,7 +157,7 @@ No user story work begins until this phase is complete.
 - [X] T039 Run full Vitest test suite: `pnpm test --coverage`; confirm all unit and regression tests pass with zero failures
 - [X] T040 Manual cross-browser validation against SC-006: open the static build (`pnpm build && pnpm preview`) in the two most recent versions of Chrome, Firefox, and Safari; complete the full upload → crop → adjust → generate → view flow in each
 - [X] T041 Validate SC-002 performance: using `test-face.jpg` fixture, measure time from Generate click to mosaic displayed; confirm < 10 seconds (expected < 1s for 32×32 canvas operations)
-- [ ] T042 Validate SC-003 invariant: for both test fixtures, confirm `PartsList.totalPieces === 1024` is displayed; run `pnpm test` to confirm the assertion in `parts-list.test.ts` covers this
+- [X] T042 Validate SC-003 invariant: for both test fixtures, confirm `PartsList.totalPieces === 1024` is displayed; run `pnpm test` to confirm the assertion in `parts-list.test.ts` covers this
 
 ---
 
@@ -207,8 +207,8 @@ Phase 7:   [T035 [P], T036 [P], T037 [P], T038 [P]] → T039 → [T040, T041, T0
 
 - [X] T043 Create `render.yaml` at repo root: static site service with `buildCommand: pnpm build`, `staticPublishPath: dist`, Node version 20
 - [X] T044 [P] Create `.node-version` or `engines` field in `package.json` specifying Node 20 so Render picks up the correct runtime
-- [ ] T045 Connect the GitHub repository to Render.com: create a new Static Site service pointing at this repo's `master` branch; confirm environment auto-detects `render.yaml`
-- [ ] T046 Verify deployed Render URL loads the app, completes the full upload → crop → adjust → generate → view flow, and shows no console errors
+- [X] T045 Connect the GitHub repository to Render.com: create a new Static Site service pointing at this repo's `master` branch; confirm environment auto-detects `render.yaml`
+- [X] T046 Verify deployed Render URL loads the app, completes the full upload → crop → adjust → generate → view flow, and shows no console errors
 - [X] T047 [P] Add the Render deploy URL to `README.md`
 
 **Checkpoint**: Live site accessible at the Render URL; full feature flow works in the deployed environment.

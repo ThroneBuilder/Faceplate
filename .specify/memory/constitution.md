@@ -1,18 +1,25 @@
 <!--
 SYNC_IMPACT_REPORT
-Version change: (placeholder template) → 1.0.0 — initial ratification
-Added principles:
-  I.   Privacy by Design
-  II.  Browser-First Processing
-  III. Deterministic Pipeline
-  IV.  Extensible Data Schemas
-  V.   Regression-Safe Releases
-  VI.  Algorithmic Baseline First
-Additional constraints added: TypeScript Strict Mode, No LLM in Phase 1A
+Version change: 1.0.0 → 2.0.0 — MAJOR amendment: Principle I exception added
+
+Changed principles:
+  I.  Privacy by Design — added first-party ephemeral server exception with conditions
+  II. Browser-First Processing — updated to reference Principle I exception
+
+Rationale: Phase 2A/2B candidate generation requires generating 9 mosaics concurrently.
+  Client-side Web Workers are the primary approach and remain preferred. A server-side
+  API path is now permitted as a conditional fallback when performance requirements
+  demonstrably cannot be met client-side, subject to strict ephemeral-processing
+  constraints. The project owner explicitly approved this amendment on 2026-05-31.
+
 Templates checked:
-  - .specify/templates/plan-template.md  ✅ Constitution Check section updated with gates table
+  - .specify/templates/plan-template.md  ✅ Constitution Check gate note updated
   - .specify/templates/spec-template.md  ✅ No changes required
   - .specify/templates/tasks-template.md ✅ No changes required
+
+Open plans updated:
+  - specs/003-mosaic-candidates/plan.md  ✅ Constitution Check updated (⚠️ → ✅)
+
 Deferred TODOs: none
 -->
 
@@ -23,20 +30,37 @@ Deferred TODOs: none
 ### I. Privacy by Design
 
 All image processing, pixel operations, and derived outputs MUST run entirely
-within the user's browser. No user-supplied image data, pixel values, or
-generated output may be transmitted to any server, third-party service, or
-analytics endpoint — under any circumstance, including error reporting.
+within the user's browser by default. No user-supplied image data, pixel values,
+or generated output may be transmitted to any third-party service or analytics
+endpoint — under any circumstance, including error reporting.
 
-This is a product promise, not a technical preference. Any future feature that
-would require server-side access to user images MUST be explicitly rejected or
-redesigned until it satisfies this constraint.
+**First-party ephemeral server exception**: A feature MAY transmit the user's
+image data to a first-party server (owned and operated by this project) if and
+only if ALL of the following conditions are met:
+
+1. **Performance justification**: The client-side path demonstrably cannot meet
+   a documented performance requirement (with measured data, not estimates).
+2. **Ephemeral processing**: The server MUST be stateless with respect to image
+   data — no image pixels or derived mosaic output may be written to disk, logged,
+   stored in memory beyond the request lifetime, or transmitted onward to any
+   third party.
+3. **Explicit approval**: The exception is documented in the feature's plan.md
+   and explicitly approved by the project owner before implementation begins.
+4. **Scope limitation**: The server endpoint is dedicated to the justified
+   bottleneck only; it MUST NOT receive image data for any other purpose.
+
+The client-side (browser-only) path MUST remain the default and MUST be
+shipped first. The server API path is a performance fallback, not a replacement.
+
+This is a product promise. The third-party prohibition remains absolute.
 
 ### II. Browser-First Processing
 
 All computation MUST occur client-side unless a specific, documented
 performance requirement demonstrably cannot be met in-browser. If a backend
-is introduced for a future phase, it MUST NOT receive image data (Principle I
-prevails), and its scope MUST be limited to the justified bottleneck.
+is introduced for a future phase, its scope MUST be limited to the justified
+bottleneck. It MUST NOT receive image data unless the Principle I first-party
+ephemeral server exception has been explicitly approved for that feature.
 
 ### III. Deterministic Pipeline
 
@@ -104,7 +128,7 @@ Principle VI is satisfied first.
 
 | Gate | Principle | Pass Condition |
 |---|---|---|
-| Client-only processing | I, II | No server processing of image data in scope |
+| Client-only processing | I, II | No server processing of image data in scope, OR Principle I first-party ephemeral exception is documented and approved |
 | Deterministic output | III | Pipeline avoids browser-vendor interpolation |
 | Schema extensibility | IV | Future optional fields reserved in entity types |
 | Snapshot coverage | V | Regression snapshot exists and is CI-enforced |
@@ -128,4 +152,4 @@ All PRs touching `src/lib/` or `src/types/` MUST verify compliance with
 Principles III, IV, and V. All PRs introducing new npm dependencies MUST
 verify compliance with Principles I, II, and VI.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-05-30
+**Version**: 2.0.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-05-31

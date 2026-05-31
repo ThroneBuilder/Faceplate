@@ -45,7 +45,7 @@ each gate below and mark ✅ pass or ❌ fail with justification.*
 
 | Gate | Principle | Result | Notes |
 |---|---|---|---|
-| Client-only processing | I, II | [✅/❌] | [notes] |
+| Client-only processing | I, II | [✅/❌] | [✅ if client-only; ✅ if Principle I first-party ephemeral exception is documented and approved in this plan; ❌ otherwise] |
 | Deterministic output | III | [✅/❌] | [notes] |
 | Schema extensibility | IV | [✅/❌] | [notes] |
 | Snapshot coverage | V | [✅/❌] | [notes] |

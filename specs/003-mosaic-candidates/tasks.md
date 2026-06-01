@@ -18,7 +18,7 @@
 
 **Purpose**: Create the new module directory structure. No new npm dependencies.
 
-- [ ] T001 Create `src/lib/candidates/` directory with empty placeholder files: `grid.ts`, `cache.ts`, `history.ts`, `worker-pool.ts`, `mosaic-worker.ts` (each exports `export {}` as a stub)
+- [x] T001 Create `src/lib/candidates/` directory with empty placeholder files: `grid.ts`, `cache.ts`, `history.ts`, `worker-pool.ts`, `mosaic-worker.ts` (each exports `export {}` as a stub)
 
 ---
 
@@ -28,11 +28,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 Add new types to `src/types/index.ts`: `CandidateKey`, `MosaicCandidate`, `CandidateGrid`, `HistoryEntry`, `SelectionHistory`, `CandidateCache`, `WorkerInput`, `WorkerOutput` — per `data-model.md`
-- [ ] T003 Extend `MosaicOptions` in `src/types/index.ts` with optional `brightnessOffset?: number` and `contrastOffset?: number` fields — per `data-model.md`
-- [ ] T004 Add `candidate-grid` and `mosaic-confirmed` phases to the `AppState` union in `src/types/index.ts`; mark existing `adjusting` and `generating` phases `@deprecated` — per `data-model.md`
-- [ ] T005 Extract `applyAdjustment(imageData: ImageData, brightnessOffset: number, contrastOffset: number): ImageData` as a standalone pure exported function in `src/lib/image/adjust.ts` (currently inlined in the pipeline); verify `pnpm test` still passes after extraction
-- [ ] T006 Add `onCropConfirmed` to `src/lib/app-state.ts`: transitions `head-cropping` → `candidate-grid` with initial grid (center=(0,0), step=67, all cells pending), empty history (default entry), empty cache — per `contracts/ui-state.md`
+- [x] T002 Add new types to `src/types/index.ts`: `CandidateKey`, `MosaicCandidate`, `CandidateGrid`, `HistoryEntry`, `SelectionHistory`, `CandidateCache`, `WorkerInput`, `WorkerOutput` — per `data-model.md`
+- [x] T003 Extend `MosaicOptions` in `src/types/index.ts` with optional `brightnessOffset?: number` and `contrastOffset?: number` fields — per `data-model.md`
+- [x] T004 Add `candidate-grid` and `mosaic-confirmed` phases to the `AppState` union in `src/types/index.ts`; mark existing `adjusting` and `generating` phases `@deprecated` — per `data-model.md`
+- [x] T005 Extract `applyAdjustment(imageData: ImageData, brightnessOffset: number, contrastOffset: number): ImageData` as a standalone pure exported function in `src/lib/image/adjust.ts` (currently inlined in the pipeline); verify `pnpm test` still passes after extraction
+- [x] T006 Add `onCropConfirmed` to `src/lib/app-state.ts`: transitions `head-cropping` → `candidate-grid` with initial grid (center=(0,0), step=67, all cells pending), empty history (default entry), empty cache — per `contracts/ui-state.md`
 
 **Checkpoint**: Run `pnpm test` — all existing tests must pass before proceeding.
 
@@ -46,17 +46,17 @@
 
 ### Implementation
 
-- [ ] T007 [P] [US1] Implement `candidateCacheKey`, `getCached`, `putCached`, `hydrateGridFromCache` in `src/lib/candidates/cache.ts` — per `contracts/pipeline-api.md` Cache module
-- [ ] T008 [P] [US1] Implement `computeGridKeys`, `computeNextStep`, `buildInitialGrid` in `src/lib/candidates/grid.ts` — per `contracts/pipeline-api.md` Grid module
-- [ ] T009 [US1] Implement `src/lib/candidates/mosaic-worker.ts`: receive `WorkerInput`, reconstruct `ImageData`, call `applyAdjustment`, call `generateMosaic`, post `WorkerOutput` — depends on T005, T007, T008; per `contracts/pipeline-api.md` Worker entry
-- [ ] T010 [US1] Implement `spawnCandidateBatch` in `src/lib/candidates/worker-pool.ts`: spawn `min(missing.length, navigator.hardwareConcurrency)` module-type workers, structured-clone `imageBuffer` per worker, call `onCellReady`/`onCellError` as results arrive, honour `AbortSignal` — depends on T009; per `contracts/pipeline-api.md` Worker pool
-- [ ] T011 [US1] Add `onWorkerCellReady` and `onWorkerCellError` to `src/lib/app-state.ts`: update `grid.cells[index]` status and mosaic — per `contracts/ui-state.md`
-- [ ] T012 [US1] Create `src/components/CandidateGrid.astro`: 3×3 grid of square cells; loading spinner for `pending` cells, mosaic thumbnail for `ready` cells (letterboxed, aspect-ratio maintained), grey placeholder + error icon for `error` cells; no click handlers yet — per `contracts/ui-state.md` UI rendering rules
-- [ ] T013 [US1] Create `src/components/CandidateSection.astro`: wrapper containing `CandidateGrid`, a placeholder `<div>` for the history strip, and a disabled Confirm Mosaic button; instructional text above grid reads "Click a candidate to refine your selection"
-- [ ] T014 [US1] Wire US1 into `src/pages/index.astro`: call `onCropConfirmed` on crop confirmation event, set `AbortController`, call `spawnCandidateBatch`, dispatch `onWorkerCellReady`/`onWorkerCellError` results to state, render `CandidateSection` in `candidate-grid` phase — depends on T010, T011, T013
-- [ ] T015 [US1] Generate regression snapshot `tests/regression/__snapshots__/mosaic-32x32-candidate.snap.json` (b=0, c=0) via `pnpm test:update`; verify result matches existing `mosaic-32x32.snap.json`
-- [ ] T016 [P] [US1] Unit tests for `computeGridKeys` (center values, step arithmetic, ±100 clamping) and `computeNextStep` (halving, minimum-1 floor) in `tests/unit/grid.test.ts`
-- [ ] T017 [P] [US1] Unit tests for `candidateCacheKey` (key format), `hydrateGridFromCache` (partial hit, full miss, full hit) in `tests/unit/cache.test.ts`
+- [x] T007 [P] [US1] Implement `candidateCacheKey`, `getCached`, `putCached`, `hydrateGridFromCache` in `src/lib/candidates/cache.ts` — per `contracts/pipeline-api.md` Cache module
+- [x] T008 [P] [US1] Implement `computeGridKeys`, `computeNextStep`, `buildInitialGrid` in `src/lib/candidates/grid.ts` — per `contracts/pipeline-api.md` Grid module
+- [x] T009 [US1] Implement `src/lib/candidates/mosaic-worker.ts`: receive `WorkerInput`, reconstruct `ImageData`, call `applyAdjustment`, call `generateMosaic`, post `WorkerOutput` — depends on T005, T007, T008; per `contracts/pipeline-api.md` Worker entry
+- [x] T010 [US1] Implement `spawnCandidateBatch` in `src/lib/candidates/worker-pool.ts`: spawn `min(missing.length, navigator.hardwareConcurrency)` module-type workers, structured-clone `imageBuffer` per worker, call `onCellReady`/`onCellError` as results arrive, honour `AbortSignal` — depends on T009; per `contracts/pipeline-api.md` Worker pool
+- [x] T011 [US1] Add `onWorkerCellReady` and `onWorkerCellError` to `src/lib/app-state.ts`: update `grid.cells[index]` status and mosaic — per `contracts/ui-state.md`
+- [x] T012 [US1] Create `src/components/CandidateGrid.astro`: 3×3 grid of square cells; loading spinner for `pending` cells, mosaic thumbnail for `ready` cells (letterboxed, aspect-ratio maintained), grey placeholder + error icon for `error` cells; no click handlers yet — per `contracts/ui-state.md` UI rendering rules
+- [x] T013 [US1] Create `src/components/CandidateSection.astro`: wrapper containing `CandidateGrid`, a placeholder `<div>` for the history strip, and a disabled Confirm Mosaic button; instructional text above grid reads "Click a candidate to refine your selection"
+- [x] T014 [US1] Wire US1 into `src/pages/index.astro`: call `onCropConfirmed` on crop confirmation event, set `AbortController`, call `spawnCandidateBatch`, dispatch `onWorkerCellReady`/`onWorkerCellError` results to state, render `CandidateSection` in `candidate-grid` phase — depends on T010, T011, T013
+- [x] T015 [US1] Generate regression snapshot `tests/regression/__snapshots__/mosaic-32x32-candidate.snap.json` (b=0, c=0) via `pnpm test:update`; verify result matches existing `mosaic-32x32.snap.json`
+- [x] T016 [P] [US1] Unit tests for `computeGridKeys` (center values, step arithmetic, ±100 clamping) and `computeNextStep` (halving, minimum-1 floor) in `tests/unit/grid.test.ts`
+- [x] T017 [P] [US1] Unit tests for `candidateCacheKey` (key format), `hydrateGridFromCache` (partial hit, full miss, full hit) in `tests/unit/cache.test.ts`
 
 **Checkpoint**: `pnpm dev` → confirm a crop → nine cells appear (with progressive loading), center cell matches Phase 1A result. `pnpm test` passes.
 
@@ -70,16 +70,16 @@
 
 ### Implementation
 
-- [ ] T018 [US2] Add `buildNextGrid` to `src/lib/candidates/grid.ts`: takes `selectedKey` + `currentStep`, returns new `CandidateGrid` centered on `selectedKey` with `computeNextStep(currentStep)` — per `contracts/pipeline-api.md`
-- [ ] T019 [P] [US2] Implement `createHistory`, `pushHistory`, `activeEntry` in `src/lib/candidates/history.ts` — per `contracts/pipeline-api.md` History module
-- [ ] T020 [US2] Add `onCandidateCellSelected` to `src/lib/app-state.ts`: validates cell is `ready` and non-center, calls `pushHistory`, calls `buildNextGrid`, calls `hydrateGridFromCache` — depends on T018, T019; per `contracts/ui-state.md`
-- [ ] T021 [US2] Add click handlers to `src/components/CandidateGrid.astro`: emit a `cell-selected` event for `ready` non-center cells; center cell (index 4) is not clickable; `pending`/`error` cells are not clickable
-- [ ] T022 [US2] Create `src/components/HistoryStrip.astro`: horizontal scrolling strip; renders each `HistoryEntry` as a mosaic thumbnail; active entry (index === activeIndex) has blue outline; no click handlers yet
-- [ ] T023 [US2] Replace the history strip placeholder in `src/components/CandidateSection.astro` with `HistoryStrip`
-- [ ] T024 [US2] Wire `onCandidateCellSelected` into `src/pages/index.astro`: on `cell-selected` event, abort prior `AbortController`, call `onCandidateCellSelected`, create new `AbortController`, spawn new batch for uncached cells — depends on T020, T021
-- [ ] T025 [US2] Generate regression snapshot `tests/regression/__snapshots__/mosaic-32x32-candidate-b67c67.snap.json` (b=67, c=67) via `pnpm test:update`
-- [ ] T026 [P] [US2] Append unit tests for `buildNextGrid` to `tests/unit/grid.test.ts`: verify center matches selectedKey, step = floor(currentStep/2) clamped to 1, cells[4].key === center
-- [ ] T027 [P] [US2] Unit tests for `createHistory` and `pushHistory` (adds entry, discards forward entries after revert point) in `tests/unit/history.test.ts`
+- [x] T018 [US2] Add `buildNextGrid` to `src/lib/candidates/grid.ts`: takes `selectedKey` + `currentStep`, returns new `CandidateGrid` centered on `selectedKey` with `computeNextStep(currentStep)` — per `contracts/pipeline-api.md`
+- [x] T019 [P] [US2] Implement `createHistory`, `pushHistory`, `activeEntry` in `src/lib/candidates/history.ts` — per `contracts/pipeline-api.md` History module
+- [x] T020 [US2] Add `onCandidateCellSelected` to `src/lib/app-state.ts`: validates cell is `ready` and non-center, calls `pushHistory`, calls `buildNextGrid`, calls `hydrateGridFromCache` — depends on T018, T019; per `contracts/ui-state.md`
+- [x] T021 [US2] Add click handlers to `src/components/CandidateGrid.astro`: emit a `cell-selected` event for `ready` non-center cells; center cell (index 4) is not clickable; `pending`/`error` cells are not clickable
+- [x] T022 [US2] Create `src/components/HistoryStrip.astro`: horizontal scrolling strip; renders each `HistoryEntry` as a mosaic thumbnail; active entry (index === activeIndex) has blue outline; no click handlers yet
+- [x] T023 [US2] Replace the history strip placeholder in `src/components/CandidateSection.astro` with `HistoryStrip`
+- [x] T024 [US2] Wire `onCandidateCellSelected` into `src/pages/index.astro`: on `cell-selected` event, abort prior `AbortController`, call `onCandidateCellSelected`, create new `AbortController`, spawn new batch for uncached cells — depends on T020, T021
+- [x] T025 [US2] Generate regression snapshot `tests/regression/__snapshots__/mosaic-32x32-candidate-b67c67.snap.json` (b=67, c=67) via `pnpm test:update`
+- [x] T026 [P] [US2] Append unit tests for `buildNextGrid` to `tests/unit/grid.test.ts`: verify center matches selectedKey, step = floor(currentStep/2) clamped to 1, cells[4].key === center
+- [x] T027 [P] [US2] Unit tests for `createHistory` and `pushHistory` (adds entry, discards forward entries after revert point) in `tests/unit/history.test.ts`
 
 **Checkpoint**: `pnpm dev` → click two non-center cells in sequence → verify grid narrows, history strip grows, all previously generated cells reappear instantly from cache. `pnpm test` passes.
 
@@ -93,11 +93,11 @@
 
 ### Implementation
 
-- [ ] T028 [US3] Add `revertHistory` to `src/lib/candidates/history.ts`: sets `activeIndex` to `targetIndex` without truncating forward entries — per `contracts/pipeline-api.md`
-- [ ] T029 [US3] Add `onHistoryEntryClicked` to `src/lib/app-state.ts`: calls `revertHistory`, builds a new fully-cache-hydrated `CandidateGrid` from the history entry's key and stepSize, returns new state — depends on T028; per `contracts/ui-state.md`
-- [ ] T030 [US3] Add click handlers and de-emphasised styling to `src/components/HistoryStrip.astro`: entries after `activeIndex` are dimmed (e.g., `opacity: 0.4`) and still clickable; all entries except the active one emit a `history-selected` event on click
-- [ ] T031 [US3] Wire `onHistoryEntryClicked` into `src/pages/index.astro`: on `history-selected` event, abort prior `AbortController` (cancels any in-progress generation), call `onHistoryEntryClicked`, re-render grid from cache — depends on T029, T030
-- [ ] T032 [P] [US3] Append unit tests for `revertHistory` to `tests/unit/history.test.ts`: test that forward entries are preserved, activeIndex updates correctly, re-advancing after revert discards the forward entries
+- [x] T028 [US3] Add `revertHistory` to `src/lib/candidates/history.ts`: sets `activeIndex` to `targetIndex` without truncating forward entries — per `contracts/pipeline-api.md`
+- [x] T029 [US3] Add `onHistoryEntryClicked` to `src/lib/app-state.ts`: calls `revertHistory`, builds a new fully-cache-hydrated `CandidateGrid` from the history entry's key and stepSize, returns new state — depends on T028; per `contracts/ui-state.md`
+- [x] T030 [US3] Add click handlers and de-emphasised styling to `src/components/HistoryStrip.astro`: entries after `activeIndex` are dimmed (e.g., `opacity: 0.4`) and still clickable; all entries except the active one emit a `history-selected` event on click
+- [x] T031 [US3] Wire `onHistoryEntryClicked` into `src/pages/index.astro`: on `history-selected` event, abort prior `AbortController` (cancels any in-progress generation), call `onHistoryEntryClicked`, re-render grid from cache — depends on T029, T030
+- [x] T032 [P] [US3] Append unit tests for `revertHistory` to `tests/unit/history.test.ts`: test that forward entries are preserved, activeIndex updates correctly, re-advancing after revert discards the forward entries
 
 **Checkpoint**: `pnpm dev` → iterate forward 3× → click an earlier history entry → grid appears instantly, forward entries dimmed. Click a grid cell → forward entries replaced. `pnpm test` passes.
 
@@ -111,12 +111,12 @@
 
 ### Implementation
 
-- [ ] T033 [US4] Add `onConfirmMosaic` to `src/lib/app-state.ts`: transitions `candidate-grid` → `mosaic-confirmed` using `grid.cells[4].mosaic` and `activeEntry(history).key` — per `contracts/ui-state.md`
-- [ ] T034 [US4] Add Confirm Mosaic button to `src/components/CandidateSection.astro`: blue outline when `grid.cells[4].status === 'ready'`; disabled (grey outline) when `pending`; emits `confirm-mosaic` event on click
-- [ ] T035 [US4] Apply blue outline to center cell (index 4) when `status === 'ready'` in `src/components/CandidateGrid.astro`; use the same CSS token/class as the Confirm Mosaic button
-- [ ] T036 [US4] Apply blue outline to the active history entry (`index === activeIndex`) in `src/components/HistoryStrip.astro`; use the same CSS token/class
-- [ ] T037 [US4] Add instructional / minimum-step notice above grid in `src/components/CandidateSection.astro`: show "Click a candidate to refine your selection" when `grid.atMinimumStep === false`; replace with "Maximum refinement reached — click Confirm Mosaic to continue" when `grid.atMinimumStep === true`
-- [ ] T038 [US4] Wire `onConfirmMosaic` into `src/pages/index.astro`: on `confirm-mosaic` event, call `onConfirmMosaic`, transition to `mosaic-confirmed` phase; render a placeholder "Mosaic confirmed" screen (full result screen is out of scope for this feature)
+- [x] T033 [US4] Add `onConfirmMosaic` to `src/lib/app-state.ts`: transitions `candidate-grid` → `mosaic-confirmed` using `grid.cells[4].mosaic` and `activeEntry(history).key` — per `contracts/ui-state.md`
+- [x] T034 [US4] Add Confirm Mosaic button to `src/components/CandidateSection.astro`: blue outline when `grid.cells[4].status === 'ready'`; disabled (grey outline) when `pending`; emits `confirm-mosaic` event on click
+- [x] T035 [US4] Apply blue outline to center cell (index 4) when `status === 'ready'` in `src/components/CandidateGrid.astro`; use the same CSS token/class as the Confirm Mosaic button
+- [x] T036 [US4] Apply blue outline to the active history entry (`index === activeIndex`) in `src/components/HistoryStrip.astro`; use the same CSS token/class
+- [x] T037 [US4] Add instructional / minimum-step notice above grid in `src/components/CandidateSection.astro`: show "Click a candidate to refine your selection" when `grid.atMinimumStep === false`; replace with "Maximum refinement reached — click Confirm Mosaic to continue" when `grid.atMinimumStep === true`
+- [x] T038 [US4] Wire `onConfirmMosaic` into `src/pages/index.astro`: on `confirm-mosaic` event, call `onConfirmMosaic`, transition to `mosaic-confirmed` phase; render a placeholder "Mosaic confirmed" screen (full result screen is out of scope for this feature)
 
 **Checkpoint**: `pnpm dev` → confirm crop → iterate a few times → verify blue outline connects center cell, active history entry, and Confirm button. Iterate until step=1 → verify minimum-refinement notice appears. Click Confirm Mosaic → verify app transitions. `pnpm test` passes.
 
@@ -126,8 +126,8 @@
 
 **Purpose**: Hardening, observability, and cross-browser validation.
 
-- [ ] T039 [P] Add boundary-clamping unit tests to `tests/unit/grid.test.ts`: verify that `computeGridKeys` clamps all output values to [−100, 100] when center is near the boundary (e.g., center=(90,90), step=67)
-- [ ] T040 [P] Add `performance.now()` instrumentation around the `generateMosaic` call in `src/lib/candidates/mosaic-worker.ts`: post generation duration as part of `WorkerOutput` (optional field `durationMs?: number`); log to console in `worker-pool.ts` for benchmarking
+- [x] T039 [P] Add boundary-clamping unit tests to `tests/unit/grid.test.ts`: verify that `computeGridKeys` clamps all output values to [−100, 100] when center is near the boundary (e.g., center=(90,90), step=67)
+- [x] T040 [P] Add `performance.now()` instrumentation around the `generateMosaic` call in `src/lib/candidates/mosaic-worker.ts`: post generation duration as part of `WorkerOutput` (optional field `durationMs?: number`); log to console in `worker-pool.ts` for benchmarking
 - [ ] T041 Manually test the minimum-step flow in `pnpm dev`: iterate until `atMinimumStep === true`, verify the notice renders correctly, verify all 9 cells show identical mosaics without error, verify Confirm Mosaic works
 - [ ] T042 Cross-browser smoke test per SC-006: test full flow (crop confirm → iterate ×2 → revert → confirm) in Chrome (latest), Firefox (latest), Safari (latest)
 - [ ] T043 Update CI configuration to run `mosaic-32x32-candidate*.snap.json` snapshots on every PR touching `src/lib/` (add to existing snapshot test run)

@@ -24,8 +24,8 @@ Immediately after the user confirms the crop, the page reveals a 3×3 grid of ni
 
 1. **Given** the user has confirmed a crop, **When** the candidate grid loads, **Then** nine mosaic previews are displayed in a 3×3 grid with the no-adjustment candidate at the center position.
 2. **Given** the candidate grid has loaded, **When** the user views it, **Then** all nine candidates are distinct and reflect the brightness and contrast settings used to generate them.
-3. **Given** the candidate grid has loaded, **When** the user views the history strip, **Then** the default candidate appears as the first (and only) item in the history.
-4. **Given** the system is generating the initial nine candidates, **When** generation is in progress, **Then** a visible loading state is shown and the grid becomes interactive only after all nine candidates are ready.
+3. **Given** the candidate grid has loaded, **When** the user views the history strip, **Then** the default candidate appears as the first (and only) item in the history. (The history strip is fully interactive after US2 is complete; in the MVP it renders as a placeholder showing the default entry.)
+4. **Given** the system is generating the initial nine candidates, **When** generation is in progress, **Then** a visible loading state is shown for each pending cell; each cell becomes interactive as its individual generation completes (progressive activation).
 
 ---
 
@@ -139,7 +139,7 @@ When the user is satisfied, they click "Confirm Mosaic" to proceed with the most
 
 - Candidate generation uses the same deterministic CIEDE2000 mosaic pipeline established in Phase 1A; the only variables per candidate are the brightness and contrast offsets applied before the mosaic algorithm runs.
 - The initial brightness×contrast search space spans [−100, 100] × [−100, 100]. The initial step is 100 × 2/3 ≈ 67, placing the eight surrounding candidates at ±67 in each axis from the center (0, 0).
-- Step halving is applied to the step size (not the full range): if step = 67, next step = 33; if step = 33, next step = 17, and so on, floored to a minimum of 1. Note: because the 3×3 grid divides each axis into thirds, the clicked candidate falls in one of three thirds of the prior range — not one of two halves. Step halving therefore produces a new grid that slightly overlaps adjacent thirds rather than exactly tiling the chosen third. A pure ternary approach (step/3) or overlap/randomness injection may converge faster; this is flagged for evaluation in the planning phase and potential revision after user testing.
+- Step halving is applied to the step size (not the full range): if step = 67, next step = 33; if step = 33, next step = 16; if step = 16, next step = 8, and so on (Math.floor(step / 2)), floored to a minimum of 1. Note: because the 3×3 grid divides each axis into thirds, the clicked candidate falls in one of three thirds of the prior range — not one of two halves. Step halving therefore produces a new grid that slightly overlaps adjacent thirds rather than exactly tiling the chosen third. A pure ternary approach (step/3) or overlap/randomness injection may converge faster; this is flagged for evaluation in the planning phase and potential revision after user testing.
 - The nine candidates (3×3 grid) include the center plus all eight combinations of (center_B ± step, center_C ± step) — i.e., all pairs where each axis is independently offset.
 - All nine candidates in a grid use the same step size for both brightness and contrast axes.
 - The history strip displays the sequence of user-chosen center candidates (not all nine generated candidates). Only the candidates the user explicitly chose (by clicking) appear in history, plus the initial default.

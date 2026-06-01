@@ -1,0 +1,83 @@
+---
+import CandidateGrid from './CandidateGrid.astro'
+import HistoryStrip from './HistoryStrip.astro'
+---
+<section id="candidate-section" hidden aria-label="Mosaic candidate selection">
+
+  <p id="candidate-instruction" class="candidate-instruction">
+    Click a candidate to refine your selection
+  </p>
+
+  <CandidateGrid />
+
+  <div class="history-area">
+    <p class="history-label">Selection history</p>
+    <HistoryStrip />
+  </div>
+
+  <div class="candidate-actions">
+    <button id="confirm-mosaic-btn" class="confirm-mosaic-btn" type="button" disabled>
+      Confirm Mosaic
+    </button>
+  </div>
+
+</section>
+
+<style>
+  #candidate-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .candidate-instruction {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #555;
+    text-align: center;
+  }
+
+  .history-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .history-label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+  }
+
+  .candidate-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .confirm-mosaic-btn {
+    padding: 0.7rem 1.4rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: not-allowed;
+    color: #aaa;
+    transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  }
+
+  /* Enabled + highlighted when center cell is ready */
+  .confirm-mosaic-btn:not(:disabled) {
+    border-color: #2563eb;
+    color: #1d4ed8;
+    cursor: pointer;
+    box-shadow: 0 0 0 2px #93c5fd;
+  }
+
+  .confirm-mosaic-btn:not(:disabled):hover {
+    background: #eff6ff;
+  }
+</style>

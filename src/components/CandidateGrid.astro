@@ -1,0 +1,113 @@
+---
+// CandidateGrid renders a 3×3 grid of mosaic candidate cells.
+// State is managed externally; this component renders static HTML.
+// The <script> block in index.astro drives interactivity.
+---
+<div id="candidate-grid" class="candidate-grid" role="grid" aria-label="Mosaic candidates">
+  {Array.from({ length: 9 }, (_, i) => (
+    <div
+      id={`cell-${i}`}
+      class={`candidate-cell${i === 4 ? ' candidate-cell--center' : ''}`}
+      role="gridcell"
+      data-cell-index={i}
+      aria-label={i === 4 ? 'Current center candidate' : `Candidate ${i + 1}`}
+    >
+      <div class="candidate-cell__inner">
+        <div class="candidate-cell__spinner" aria-hidden="true"></div>
+        <canvas class="candidate-cell__canvas" aria-hidden="true"></canvas>
+        <div class="candidate-cell__error" aria-hidden="true">
+          <span class="candidate-cell__error-icon" aria-label="Generation failed">⚠</span>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+
+<style>
+  .candidate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .candidate-cell {
+    aspect-ratio: 1;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f5f5f5;
+    cursor: default;
+    position: relative;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .candidate-cell[data-status="ready"]:not(.candidate-cell--center) {
+    cursor: pointer;
+  }
+  .candidate-cell[data-status="ready"]:not(.candidate-cell--center):hover {
+    border-color: #999;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  /* Blue outline on center cell when ready */
+  .candidate-cell--center[data-status="ready"] {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px #93c5fd;
+  }
+
+  .candidate-cell__inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Spinner */
+  .candidate-cell__spinner {
+    display: none;
+    width: 28px;
+    height: 28px;
+    border: 3px solid #ddd;
+    border-top-color: #666;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .candidate-cell[data-status="pending"] .candidate-cell__spinner { display: block; }
+  .candidate-cell[data-status="pending"] .candidate-cell__canvas  { display: none; }
+  .candidate-cell[data-status="pending"] .candidate-cell__error   { display: none; }
+
+  /* Canvas (letterboxed mosaic thumbnail) */
+  .candidate-cell__canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+  .candidate-cell[data-status="ready"] .candidate-cell__spinner { display: none; }
+  .candidate-cell[data-status="ready"] .candidate-cell__canvas  { display: block; }
+  .candidate-cell[data-status="ready"] .candidate-cell__error   { display: none; }
+
+  /* Error state */
+  .candidate-cell__error {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #999;
+    font-size: 1.2rem;
+  }
+  .candidate-cell[data-status="error"] .candidate-cell__spinner { display: none; }
+  .candidate-cell[data-status="error"] .candidate-cell__canvas  { display: none; }
+  .candidate-cell[data-status="error"] .candidate-cell__error   { display: flex; }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>

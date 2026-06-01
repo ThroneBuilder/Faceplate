@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { generateMosaic } from '../../src/lib/mosaic/pipeline.js'
+import { applyAdjustments } from '../../src/lib/image/adjust.js'
 import type { LegoColor, BrickHeight } from '../../src/types/index.js'
 import PALETTE from '../../src/data/lego-palette.json'
 
@@ -94,4 +95,24 @@ describe('generateMosaic regression', () => {
       )
     })
   }
+})
+
+describe('candidate mosaic regression', () => {
+  it('candidate (b=0, c=0): snapshot matches default mosaic output', async () => {
+    const img = makeRainbowGradient()
+    const adjusted = applyAdjustments(img, 0, 0)
+    const mosaic = generateMosaic(adjusted, palette, { height: 32 })
+    await expect(JSON.stringify(mosaic.grid, null, 2)).toMatchFileSnapshot(
+      '__snapshots__/mosaic-32x32-candidate.snap.json',
+    )
+  })
+
+  it('candidate (b=67, c=67): snapshot is stable and distinct from (0,0)', async () => {
+    const img = makeRainbowGradient()
+    const adjusted = applyAdjustments(img, 67, 67)
+    const mosaic = generateMosaic(adjusted, palette, { height: 32 })
+    await expect(JSON.stringify(mosaic.grid, null, 2)).toMatchFileSnapshot(
+      '__snapshots__/mosaic-32x32-candidate-b67c67.snap.json',
+    )
+  })
 })

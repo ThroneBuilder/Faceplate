@@ -2,6 +2,7 @@
 import AdjustmentPanel from '../components/AdjustmentPanel.astro'
 import MosaicDisplay from '../components/MosaicDisplay.astro'
 import PartsList from '../components/PartsList.astro'
+import CandidateSection from '../components/CandidateSection.astro'
 ---
 
 <!doctype html>
@@ -90,6 +91,8 @@ import PartsList from '../components/PartsList.astro'
         <span>Preparing image…</span>
       </div>
 
+      <CandidateSection />
+
       <AdjustmentPanel />
       <MosaicDisplay />
 
@@ -112,7 +115,11 @@ import PartsList from '../components/PartsList.astro'
     onFileValidated, onFileValidationError,
     onImagePrepared, onBrickHeightChanged, onHeadCropConfirmed, onResetToFullImage,
     onAdjustmentChanged, onGenerateClicked, onGenerateSuccess, onReset,
+    onCropConfirmed, onWorkerCellReady, onWorkerCellError,
+    onCandidateCellSelected, onHistoryEntryClicked, onConfirmMosaic,
   } from '../lib/app-state.js'
+  import { spawnCandidateBatch } from '../lib/candidates/worker-pool.js'
+  import { hydrateGridFromCache } from '../lib/candidates/cache.js'
   import PALETTE_RAW from '../data/lego-palette.json'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
@@ -202,6 +209,12 @@ import PartsList from '../components/PartsList.astro'
   const hctHandleRight  = document.getElementById('hct-handle-right')!
   const hctBrickHeight  = document.getElementById('hct-brick-height') as HTMLSelectElement
   const hctNotice       = document.getElementById('hct-notice')!
+
+  const candidateSectionEl    = document.getElementById('candidate-section')!
+  const candidateInstructionEl = document.getElementById('candidate-instruction')!
+  const candidateGridEl       = document.getElementById('candidate-grid')!
+  const historyStripEl        = document.getElementById('history-strip')!
+  const confirmMosaicBtn      = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
   const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
@@ -351,12 +364,10 @@ import PartsList from '../components/PartsList.astro'
     const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
 
     const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
-    appState = onHeadCropConfirmed(appState as { phase: 'head-cropping' }, crop)
     hideCropOverlay()
+    appState = onCropConfirmed(appState as { phase: 'head-cropping' }, crop)
     renderPhase(appState)
-    renderPreview(cropImageData, 0, 0)
-    brightnessSlider.value = '0'; contrastSlider.value = '0'
-    brightnessValue.textContent = '0'; contrastValue.textContent = '0'
+    startCandidateBatch()
   })
 
   // ─── Crop overlay (embedded in acq-box) ──────────────────────────────────────
@@ -505,48 +516,14 @@ import PartsList from '../components/PartsList.astro'
     )
   })
 
-  // Confirm crop
-  hctConfirmBtn.addEventListener('click', () => {
-    if (!correctedImageData || appState.phase !== 'head-cropping') return
-    const iW = correctedImageData.width
-    const iH = correctedImageData.height
-    const dW = acqImage.offsetWidth
-    const dH = acqImage.offsetHeight
-    const topY    = Math.round(hctTopPx  / dH * iH)
-    const bottomY = Math.round(hctBotPx  / dH * iH)
-    const leftX   = Math.round(hctLeftPx / dW * iW)
-    const rightX  = Math.round(hctRightPx/ dW * iW)
-    const cropWidthPx  = rightX  - leftX
-    const cropHeightPx = bottomY - topY
-
-    // Derive brick height from the crop's actual aspect ratio so the mosaic
-    // proportions match what the user cropped. (32 bricks wide is fixed.)
-    const bh = Math.max(1, Math.round(32 * cropHeightPx / cropWidthPx)) as BrickHeight
-
-    // Extract the crop from the EXIF-corrected pixel data
-    const cropCanvas = document.createElement('canvas')
-    cropCanvas.width  = cropWidthPx
-    cropCanvas.height = cropHeightPx
-    const srcCanvas = document.createElement('canvas')
-    srcCanvas.width  = iW
-    srcCanvas.height = iH
-    srcCanvas.getContext('2d')!.putImageData(correctedImageData, 0, 0)
-    cropCanvas.getContext('2d')!.drawImage(srcCanvas, -leftX, -topY)
-    const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
-
-    const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
-    appState = onHeadCropConfirmed(appState as { phase: 'head-cropping' }, crop)
-    renderPhase(appState)
-    renderPreview(cropImageData, 0, 0)
-    brightnessSlider.value = '0'; contrastSlider.value = '0'
-    brightnessValue.textContent = '0'; contrastValue.textContent = '0'
-  })
+  // (Confirm crop is handled by usePhotoBtnEl above)
 
   // ─── App phase rendering ──────────────────────────────────────────────────────
 
   function renderPhase(state: AppState) {
     hide(adjustmentPanel)
     hide(mosaicDisplay); hide(partsListSection)
+    hide(candidateSectionEl)
 
     switch (state.phase) {
       case 'idle':
@@ -559,6 +536,17 @@ import PartsList from '../components/PartsList.astro'
       case 'head-cropping':
       case 'head-crop-error':
         show(acquisitionEl)
+        break
+
+      case 'candidate-grid':
+        show(candidateSectionEl)
+        renderCandidateGrid(state.grid, state.history, state.cache)
+        break
+
+      case 'mosaic-confirmed':
+        show(mosaicDisplay)
+        show(partsListSection)
+        renderResult(state.mosaic, state.crop.imageData)
         break
 
       case 'adjusting':
@@ -737,6 +725,184 @@ import PartsList from '../components/PartsList.astro'
     partsListEl.innerHTML = ''
     totalPiecesEl.textContent = '0'
   }
+
+  // ─── Candidate grid ───────────────────────────────────────────────────────────
+
+  let candidateAbortController: AbortController | null = null
+
+  function renderCandidateGrid(
+    grid: import('../types/index.js').CandidateGrid,
+    history: import('../types/index.js').SelectionHistory,
+    cache: import('../types/index.js').CandidateCache,
+  ) {
+    // Instruction text
+    candidateInstructionEl.textContent = grid.atMinimumStep
+      ? 'Maximum refinement reached — click Confirm Mosaic to continue'
+      : 'Click a candidate to refine your selection'
+
+    // Update cells
+    for (let i = 0; i < 9; i++) {
+      const cell = grid.cells[i]
+      const el = document.getElementById(`cell-${i}`)
+      if (!el) continue
+      el.dataset.status = cell.status
+      el.dataset.cellIndex = String(i)
+
+      if (cell.status === 'ready' && cell.mosaic) {
+        const canvas = el.querySelector('canvas') as HTMLCanvasElement
+        drawMosaicThumbnail(canvas, cell.mosaic)
+      }
+    }
+
+    // Confirm Mosaic button
+    const centerReady = grid.cells[4].status === 'ready'
+    confirmMosaicBtn.disabled = !centerReady
+
+    // History strip
+    renderHistoryStrip(history, cache)
+  }
+
+  function drawMosaicThumbnail(canvas: HTMLCanvasElement, mosaic: import('../types/index.js').Mosaic) {
+    const cellSize = canvas.parentElement?.offsetWidth ?? 140
+    const brickPx = Math.max(1, Math.floor(cellSize / mosaic.width))
+    const totalW = mosaic.width * brickPx
+    const totalH = mosaic.height * brickPx
+    canvas.width  = totalW
+    canvas.height = totalH
+    const ctx = canvas.getContext('2d')!
+    const paletteMap = new Map(palette.map(c => [c.id, c]))
+    for (let r = 0; r < mosaic.height; r++) {
+      for (let c = 0; c < mosaic.width; c++) {
+        const colorId = mosaic.grid[r][c]
+        const color = paletteMap.get(colorId)
+        if (color) {
+          const [rv, g, b] = color.rgb
+          ctx.fillStyle = `rgb(${rv},${g},${b})`
+          ctx.fillRect(c * brickPx, r * brickPx, brickPx, brickPx)
+        }
+      }
+    }
+  }
+
+  function renderHistoryStrip(
+    history: import('../types/index.js').SelectionHistory,
+    cache: import('../types/index.js').CandidateCache,
+  ) {
+    historyStripEl.innerHTML = ''
+    history.entries.forEach((entry, idx) => {
+      const div = document.createElement('div')
+      div.className = 'history-entry'
+      if (idx === history.activeIndex) div.classList.add('history-entry--active')
+      else if (idx > history.activeIndex) div.classList.add('history-entry--forward')
+      div.dataset.historyIndex = String(idx)
+      div.setAttribute('role', 'listitem')
+      div.setAttribute('aria-label', idx === 0 ? 'Default (no adjustment)' : `B${entry.key.brightnessOffset} C${entry.key.contrastOffset}`)
+
+      const cacheKey = `${entry.key.brightnessOffset}:${entry.key.contrastOffset}`
+      const cached = cache.get(cacheKey)
+      if (cached) {
+        const canvas = document.createElement('canvas')
+        div.appendChild(canvas)
+        drawMosaicThumbnail(canvas, cached)
+      }
+
+      if (idx !== history.activeIndex) {
+        div.style.cursor = 'pointer'
+        div.addEventListener('click', () => {
+          if (appState.phase !== 'candidate-grid') return
+          candidateAbortController?.abort()
+          candidateAbortController = new AbortController()
+          appState = onHistoryEntryClicked(
+            appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
+            idx,
+          )
+          renderPhase(appState)
+          // Spawn workers for any cells not in cache
+          startCandidateBatch()
+        })
+      }
+
+      historyStripEl.appendChild(div)
+    })
+    // Scroll to end to show most recent
+    historyStripEl.scrollLeft = historyStripEl.scrollWidth
+  }
+
+  function startCandidateBatch() {
+    if (appState.phase !== 'candidate-grid') return
+    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
+    const missing = hydrateGridFromCache(state.grid, state.cache)
+    if (missing.length === 0) {
+      renderCandidateGrid(state.grid, state.history, state.cache)
+      return
+    }
+    const ctrl = new AbortController()
+    candidateAbortController = ctrl
+    spawnCandidateBatch({
+      grid: state.grid,
+      missing,
+      cropImageData: state.crop.imageData,
+      palette,
+      cache: state.cache,
+      signal: ctrl.signal,
+      onCellReady: (index, mosaic, durationMs) => {
+        if (appState.phase !== 'candidate-grid') return
+        if (ctrl.signal.aborted) return
+        state.cache.set(`${state.grid.cells[index].key.brightnessOffset}:${state.grid.cells[index].key.contrastOffset}`, mosaic)
+        appState = onWorkerCellReady(
+          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
+          index, mosaic, durationMs,
+        )
+        if (durationMs) console.log(`[candidate] cell ${index} ready in ${durationMs.toFixed(0)}ms`)
+        renderCandidateGrid(
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
+        )
+      },
+      onCellError: (index, error) => {
+        if (appState.phase !== 'candidate-grid') return
+        if (ctrl.signal.aborted) return
+        appState = onWorkerCellError(
+          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
+          index, error,
+        )
+        renderCandidateGrid(
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
+          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
+        )
+      },
+    })
+  }
+
+  // Grid cell clicks (delegated from candidateGridEl)
+  candidateGridEl.addEventListener('click', (e) => {
+    if (appState.phase !== 'candidate-grid') return
+    const cellEl = (e.target as Element).closest('[data-cell-index]') as HTMLElement | null
+    if (!cellEl) return
+    const idx = Number(cellEl.dataset.cellIndex)
+    if (idx === 4) return  // center — no-op
+    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
+    if (state.grid.cells[idx].status !== 'ready') return
+
+    candidateAbortController?.abort()
+    candidateAbortController = new AbortController()
+    appState = onCandidateCellSelected(state, idx)
+    renderPhase(appState)
+    startCandidateBatch()
+  })
+
+  // Confirm Mosaic button
+  confirmMosaicBtn.addEventListener('click', () => {
+    if (appState.phase !== 'candidate-grid') return
+    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
+    if (state.grid.cells[4].status !== 'ready') return
+    candidateAbortController?.abort()
+    candidateAbortController = null
+    appState = onConfirmMosaic(state)
+    renderPhase(appState)
+  })
 
   // ─── Cleanup on unload ────────────────────────────────────────────────────────
 

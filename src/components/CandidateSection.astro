@@ -4,9 +4,21 @@ import HistoryStrip from './HistoryStrip.astro'
 ---
 <section id="candidate-section" hidden aria-label="Mosaic candidate selection">
 
-  <p id="candidate-instruction" class="candidate-instruction">
-    Click a candidate to refine your selection
-  </p>
+  <div id="candidate-instruction" class="candidate-instruction">
+    <span>Click a candidate to regenerate this far away:</span>
+    <select id="candidate-distance" aria-label="Navigation distance">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+      <option value="9">9</option>
+      <option value="10" selected>10</option>
+    </select>
+  </div>
 
   <CandidateGrid />
 
@@ -31,10 +43,21 @@ import HistoryStrip from './HistoryStrip.astro'
   }
 
   .candidate-instruction {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
     margin: 0;
     font-size: 0.88rem;
     color: #555;
-    text-align: center;
+  }
+
+  #candidate-distance {
+    padding: 0.25rem 0.4rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    cursor: pointer;
   }
 
   .history-area {

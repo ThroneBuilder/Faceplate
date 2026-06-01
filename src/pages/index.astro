@@ -125,6 +125,7 @@ import CandidateSection from '../components/CandidateSection.astro'
   } from '../lib/app-state.js'
   import { spawnCandidateBatch } from '../lib/candidates/worker-pool.js'
   import { hydrateGridFromCache } from '../lib/candidates/cache.js'
+  import { buildNextGrid } from '../lib/candidates/grid.js'
   import PALETTE_RAW from '../data/lego-palette.json'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
@@ -216,7 +217,7 @@ import CandidateSection from '../components/CandidateSection.astro'
   const hctNotice       = document.getElementById('hct-notice')!
 
   const candidateSectionEl    = document.getElementById('candidate-section')!
-  const candidateInstructionEl = document.getElementById('candidate-instruction')!
+  const candidateDistanceEl   = document.getElementById('candidate-distance') as HTMLSelectElement
   const candidateGridEl       = document.getElementById('candidate-grid')!
   const historyStripEl        = document.getElementById('history-strip')!
   const confirmMosaicBtn      = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
@@ -246,6 +247,7 @@ import CandidateSection from '../components/CandidateSection.astro'
 
   function show(el: HTMLElement) { el.hidden = false }
   function hide(el: HTMLElement) { el.hidden = true }
+  function getDistance(): number { return Number(candidateDistanceEl.value) }
 
   function showAcqError(msg: string) { acqError.textContent = msg; acqError.hidden = false }
   function clearAcqError() { acqError.textContent = ''; acqError.hidden = true }
@@ -373,7 +375,7 @@ import CandidateSection from '../components/CandidateSection.astro'
 
     const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
     hideCropOverlay()
-    appState = onCropConfirmed(appState as { phase: 'head-cropping' }, crop)
+    appState = onCropConfirmed(appState as { phase: 'head-cropping' }, crop, getDistance())
     renderPhase(appState)
     startCandidateBatch()
   })
@@ -671,7 +673,6 @@ import CandidateSection from '../components/CandidateSection.astro'
   function renderResult(mosaic: Mosaic, originalImageData: ImageData, cellPx = 10) {
     renderMosaicGrid(mosaic, cellPx)
     renderOriginal(originalImageData, mosaic, cellPx)
-    renderColorMatrix(mosaic, cellPx)
     renderPartsList(mosaic)
   }
 
@@ -756,11 +757,6 @@ import CandidateSection from '../components/CandidateSection.astro'
     history: import('../types/index.js').SelectionHistory,
     cache: import('../types/index.js').CandidateCache,
   ) {
-    // Instruction text
-    candidateInstructionEl.textContent = grid.atMinimumStep
-      ? 'Maximum refinement reached — click Confirm Mosaic to continue'
-      : 'Click a candidate to refine your selection'
-
     // Update cells
     for (let i = 0; i < 9; i++) {
       const cell = grid.cells[i]
@@ -909,7 +905,7 @@ import CandidateSection from '../components/CandidateSection.astro'
 
     candidateAbortController?.abort()
     candidateAbortController = new AbortController()
-    appState = onCandidateCellSelected(state, idx)
+    appState = onCandidateCellSelected(state, idx, getDistance())
     renderPhase(appState)
     startCandidateBatch()
   })
@@ -923,6 +919,23 @@ import CandidateSection from '../components/CandidateSection.astro'
     candidateAbortController = null
     appState = onConfirmMosaic(state)
     renderPhase(appState)
+  })
+
+  // Distance dropdown — rebuild grid around current center at new distance
+  candidateDistanceEl.addEventListener('change', () => {
+    if (appState.phase !== 'candidate-grid') return
+    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
+    const newGrid = buildNextGrid(state.grid.center, getDistance())
+    for (let i = 0; i < 9; i++) {
+      const ck = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
+      const cached = state.cache.get(ck)
+      if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
+    }
+    appState = { ...state, grid: newGrid }
+    candidateAbortController?.abort()
+    candidateAbortController = new AbortController()
+    renderPhase(appState)
+    startCandidateBatch()
   })
 
   // ─── Cleanup on unload ────────────────────────────────────────────────────────

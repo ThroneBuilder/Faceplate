@@ -57,8 +57,8 @@ describe('buildInitialGrid', () => {
     expect(g.center).toEqual({ brightnessOffset: 0, contrastOffset: 0 })
   })
 
-  it('has stepSize 67', () => {
-    expect(buildInitialGrid().stepSize).toBe(67)
+  it('has stepSize equal to DEFAULT_DISTANCE (10)', () => {
+    expect(buildInitialGrid().stepSize).toBe(10)
   })
 
   it('has all cells pending', () => {
@@ -83,9 +83,9 @@ describe('buildNextGrid', () => {
     expect(g.center).toEqual(key)
   })
 
-  it('halves step from 67 to 33', () => {
+  it('uses the provided distance as stepSize', () => {
     const g = buildNextGrid({ brightnessOffset: 0, contrastOffset: 0 }, 67)
-    expect(g.stepSize).toBe(33)
+    expect(g.stepSize).toBe(67)
   })
 
   it('cells[4].key equals selectedKey', () => {
@@ -94,10 +94,10 @@ describe('buildNextGrid', () => {
     expect(g.cells[4].key).toEqual(key)
   })
 
-  it('atMinimumStep true when step reaches 1', () => {
+  it('atMinimumStep is always false (distance-based navigation)', () => {
     const g = buildNextGrid({ brightnessOffset: 0, contrastOffset: 0 }, 1)
     expect(g.stepSize).toBe(1)
-    expect(g.atMinimumStep).toBe(true)
+    expect(g.atMinimumStep).toBe(false)
   })
 
   it('atMinimumStep false when step > 1', () => {

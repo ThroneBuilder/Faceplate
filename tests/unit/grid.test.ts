@@ -57,8 +57,8 @@ describe('buildInitialGrid', () => {
     expect(g.center).toEqual({ brightnessOffset: 0, contrastOffset: 0 })
   })
 
-  it('has stepSize equal to DEFAULT_DISTANCE (10)', () => {
-    expect(buildInitialGrid().stepSize).toBe(10)
+  it('has stepSize equal to DEFAULT_DISTANCE (16)', () => {
+    expect(buildInitialGrid().stepSize).toBe(16)
   })
 
   it('has all cells pending', () => {

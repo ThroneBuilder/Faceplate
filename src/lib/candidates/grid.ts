@@ -1,6 +1,6 @@
 import type { CandidateGrid, CandidateKey, MosaicCandidate } from '../../types/index.js'
 
-export const DEFAULT_DISTANCE = 10
+export const DEFAULT_DISTANCE = 16
 
 function clamp(v: number): number {
   return Math.max(-100, Math.min(100, v))

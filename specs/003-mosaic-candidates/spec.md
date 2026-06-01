@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-31
 
-**Status**: Draft
+**Status**: Shipped (2026-05-31)
 
 **Input**: User description: "Generate nine mosaic candidates in a 3×3 grid using a brightness×contrast binary search, allow iterative selection and narrowing, show a history of chosen candidates, support fast revert via cache, and confirm the final choice."
 
@@ -31,18 +31,18 @@ Immediately after the user confirms the crop, the page reveals a 3×3 grid of ni
 
 ### User Story 2 — Iterate by Selecting a Grid Candidate (Priority: P2)
 
-The user clicks any of the nine grid cells to select that candidate. The selected candidate is added to the history strip as the new most-recent entry. The grid regenerates with the selected candidate at the center and eight new candidates around it at half the previous search spacing. The user can continue selecting to refine further.
+The user clicks any of the nine grid cells to select that candidate. The selected candidate is added to the history strip as the new most-recent entry. The grid regenerates with the selected candidate at the center and eight new candidates around it at ±distance in each axis, where distance is chosen by the user via a 1–10 dropdown above the grid (default 10). The instruction text reads "Click a candidate to regenerate this far away:" followed by the dropdown.
 
 **Why this priority**: Iterative selection is the core interaction loop. It depends on the initial grid (US1) and is required before revert or confirm are meaningful.
 
-**Independent Test**: A tester can click the top-right candidate in the initial grid, verify it is added to the history strip, and verify that the new grid is centered on that candidate with the surrounding eight candidates at half the previous spacing (±33 instead of ±67 for the first iteration).
+**Independent Test**: A tester can click the top-right candidate in the initial grid with distance=10, verify it is added to the history strip, and verify that the new grid is centered on that candidate with the surrounding eight candidates at ±10 from its brightness and contrast values.
 
 **Acceptance Scenarios**:
 
-1. **Given** the candidate grid is displayed, **When** the user clicks a non-center candidate, **Then** that candidate becomes the center of a new grid, is added to the history strip as the most-recent choice, and eight new surrounding candidates are generated at half the previous step size.
+1. **Given** the candidate grid is displayed, **When** the user clicks a non-center candidate, **Then** that candidate becomes the center of a new grid, is added to the history strip as the most-recent choice, and eight new surrounding candidates are generated at ±distance (the current dropdown value) in each axis.
 2. **Given** the user has clicked a non-center candidate, **When** the new grid loads, **Then** the selected candidate is visually highlighted as the current center choice.
 3. **Given** the user clicks the center candidate (current choice), **When** no change occurs, **Then** the grid and history remain unchanged (clicking the current choice has no effect).
-4. **Given** the search space has narrowed over several iterations, **When** the step size would be less than 1, **Then** the surrounding eight candidates use a minimum step size of 1 and duplicate candidates are displayed identically without error.
+4. **Given** the user changes the distance dropdown, **When** the new value is selected, **Then** the grid regenerates around the current center at the new distance, pulling any already-cached cells from cache instantly.
 
 ---
 
@@ -81,7 +81,7 @@ When the user is satisfied, they click "Confirm Mosaic" to proceed with the most
 
 ### Edge Cases
 
-- What happens when the search step size reaches or approaches zero? The system uses a minimum step of 1; when all 8 surrounding candidates would be identical to the center, the instructional text above the grid (normally explaining how to iterate) is replaced with a non-blocking notice ("Maximum refinement reached") and the Confirm Mosaic button remains available.
+- What happens when the user sets distance to 1 and surrounding candidates are very close to the center? All nine cells generate normally; at low distances many candidates may look identical, which is expected behavior. There is no "maximum refinement" notice — the user can always adjust the distance dropdown to explore a wider or narrower range.
 - What happens if candidate generation fails for one or more cells in the grid? The affected cells display a visible error state (e.g., a grey placeholder with a retry icon); the rest of the grid remains interactive.
 - What happens when the user reverts all the way to the initial default candidate? The grid returns to the initial ±67 step size centered on (0, 0), and forward history is de-emphasized.
 - What happens if the user rapidly clicks multiple candidates before generation completes? The system processes the last click and cancels any in-progress generation from earlier clicks; the grid shows a loading state.
@@ -97,8 +97,8 @@ When the user is satisfied, they click "Confirm Mosaic" to proceed with the most
 - **FR-002**: The candidate grid MUST display exactly nine mosaic thumbnails in a 3×3 layout.
 - **FR-003**: The center position of the 3×3 grid MUST always show the most-recently chosen candidate (the initial default, or a user-selected candidate).
 - **FR-004**: The eight surrounding grid candidates MUST be generated using the most-recently chosen candidate's brightness and contrast as the center point, with candidates placed at ±step in each axis (B±step, C±step), producing a uniform grid.
-- **FR-005**: The initial step size MUST be two-thirds of 100 (approximately 67), centered on brightness=0 and contrast=0 for the first iteration.
-- **FR-006**: Each time the user selects a non-center grid candidate, the step size for the next grid MUST be half the current step size.
+- **FR-005**: The initial grid MUST be centered on brightness=0 and contrast=0, with surrounding candidates at ±distance (default distance=10) in each axis.
+- **FR-006**: The distance used to place surrounding candidates is user-controlled via a dropdown (values 1–10, default 10) shown inline with the instruction text. Changing the dropdown regenerates the grid around the current center at the new distance. Step halving is not used.
 - **FR-007**: When the user clicks a non-center grid candidate, that candidate MUST be added to the history strip as the new most-recent entry, and the grid MUST regenerate centered on that candidate.
 - **FR-008**: The history strip MUST display all previously chosen candidates in chronological order, scrollable if the number of entries exceeds the visible area.
 - **FR-009**: Clicking any entry in the history strip MUST revert the grid to that candidate's brightness and contrast settings, highlighting it as the current choice.
@@ -138,8 +138,8 @@ When the user is satisfied, they click "Confirm Mosaic" to proceed with the most
 ## Assumptions
 
 - Candidate generation uses the same deterministic CIEDE2000 mosaic pipeline established in Phase 1A; the only variables per candidate are the brightness and contrast offsets applied before the mosaic algorithm runs.
-- The initial brightness×contrast search space spans [−100, 100] × [−100, 100]. The initial step is 100 × 2/3 ≈ 67, placing the eight surrounding candidates at ±67 in each axis from the center (0, 0).
-- Step halving is applied to the step size (not the full range): if step = 67, next step = 33; if step = 33, next step = 16; if step = 16, next step = 8, and so on (Math.floor(step / 2)), floored to a minimum of 1. Note: because the 3×3 grid divides each axis into thirds, the clicked candidate falls in one of three thirds of the prior range — not one of two halves. Step halving therefore produces a new grid that slightly overlaps adjacent thirds rather than exactly tiling the chosen third. A pure ternary approach (step/3) or overlap/randomness injection may converge faster; this is flagged for evaluation in the planning phase and potential revision after user testing.
+- The brightness×contrast search space spans [−100, 100] × [−100, 100]. Candidate values are clamped to this range.
+- Navigation uses a user-controlled distance (1–10, default 10). Clicking a candidate rebuilds the grid centered on that candidate with all surrounding positions at ±distance. Changing the distance dropdown rebuilds the grid around the current center at the new distance. There is no step halving; the user controls exploration granularity directly.
 - The nine candidates (3×3 grid) include the center plus all eight combinations of (center_B ± step, center_C ± step) — i.e., all pairs where each axis is independently offset.
 - All nine candidates in a grid use the same step size for both brightness and contrast axes.
 - The history strip displays the sequence of user-chosen center candidates (not all nine generated candidates). Only the candidates the user explicitly chose (by clicking) appear in history, plus the initial default.

@@ -128,9 +128,9 @@
 
 - [x] T039 [P] Add boundary-clamping unit tests to `tests/unit/grid.test.ts`: verify that `computeGridKeys` clamps all output values to [−100, 100] when center is near the boundary (e.g., center=(90,90), step=67)
 - [x] T040 [P] Add `performance.now()` instrumentation around the `generateMosaic` call in `src/lib/candidates/mosaic-worker.ts`: post generation duration as part of `WorkerOutput` (optional field `durationMs?: number`); log to console in `worker-pool.ts` for benchmarking
-- [ ] T041 Manually test the minimum-step flow in `pnpm dev`: iterate until `atMinimumStep === true`, verify the notice renders correctly, verify all 9 cells show identical mosaics without error, verify Confirm Mosaic works
-- [ ] T042 Cross-browser smoke test per SC-006: test full flow (crop confirm → iterate ×2 → revert → confirm) in Chrome (latest), Firefox (latest), Safari (latest)
-- [ ] T043 Update CI configuration to run `mosaic-32x32-candidate*.snap.json` snapshots on every PR touching `src/lib/` (add to existing snapshot test run)
+- [x] T041 N/A — minimum-step flow superseded: bisection algorithm replaced mid-implementation with user-controlled distance dropdown (1–10); `atMinimumStep` is always `false`; no minimum-step notice is shown. Distance 1 is the effective minimum and requires no special UI.
+- [ ] T042 Cross-browser smoke test per SC-006: test full flow (crop confirm → iterate ×2 → revert → confirm) in Chrome (latest), Firefox (latest), Safari (latest) — deferred to post-merge manual QA
+- [ ] T043 Update CI configuration to run `mosaic-32x32-candidate*.snap.json` snapshots on every PR touching `src/lib/` — deferred to CI sprint
 
 ---
 

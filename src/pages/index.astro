@@ -29,32 +29,31 @@ import CandidateSection from '../components/CandidateSection.astro'
 
           <!-- Left: choose + crop controls -->
           <div class="acq-buttons">
-            <p class="acq-section-label">Choose Image</p>
-
-            <button id="camera-btn" type="button">Use Camera</button>
-            <label id="upload-label" class="upload-btn">
-              <span id="upload-btn-text">Upload Photo</span>
-              <input type="file" id="upload-input" accept="image/jpeg,image/jpg,image/png" aria-label="Upload a photo" />
-            </label>
-
-            <div class="acq-section-gap"></div>
-
-            <p class="acq-section-label">Crop Image</p>
-
-            <div class="crop-height-row">
-              <label for="hct-brick-height">Height</label>
-              <select id="hct-brick-height">
-                <option value="26">26 bricks</option>
-                <option value="28">28 bricks</option>
-                <option value="30">30 bricks</option>
-                <option value="32" selected>32 bricks</option>
-                <option value="34">34 bricks</option>
-                <option value="36">36 bricks</option>
-              </select>
+            <div class="acq-group">
+              <p class="acq-section-label">Choose Image</p>
+              <button id="camera-btn" type="button">Use Camera</button>
+              <label id="upload-label" class="upload-btn">
+                <span id="upload-btn-text">Upload Photo</span>
+                <input type="file" id="upload-input" accept="image/jpeg,image/jpg,image/png" aria-label="Upload a photo" />
+              </label>
             </div>
 
-            <button id="use-photo-btn" type="button" disabled>Confirm Crop</button>
-            <p id="hct-notice" class="hct-notice" hidden></p>
+            <div class="acq-group">
+              <p class="acq-section-label">Crop Image</p>
+              <div class="crop-height-row">
+                <label for="hct-brick-height">Height</label>
+                <select id="hct-brick-height">
+                  <option value="26">26 bricks</option>
+                  <option value="28">28 bricks</option>
+                  <option value="30">30 bricks</option>
+                  <option value="32" selected>32 bricks</option>
+                  <option value="34">34 bricks</option>
+                  <option value="36">36 bricks</option>
+                </select>
+              </div>
+              <button id="use-photo-btn" type="button" disabled>Confirm Crop</button>
+              <p id="hct-notice" class="hct-notice" hidden></p>
+            </div>
           </div>
 
           <!-- Right: image/video box with integrated crop overlay -->
@@ -752,6 +751,23 @@ import CandidateSection from '../components/CandidateSection.astro'
 
   let candidateAbortController: AbortController | null = null
 
+  // Pre-scale the crop to 4× the target mosaic resolution before handing to
+  // workers. Phone cameras produce multi-MP crops; without this, workers each
+  // receive ~100 MB of pixel data and mobile devices OOM or hang.
+  function scaleImageDataForWorkers(src: ImageData, brickHeight: number): ImageData {
+    const OVERSAMPLE = 4
+    const targetW = OVERSAMPLE * 32
+    const targetH = OVERSAMPLE * brickHeight
+    if (src.width <= targetW && src.height <= targetH) return src
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = src.width; srcCanvas.height = src.height
+    srcCanvas.getContext('2d')!.putImageData(src, 0, 0)
+    const dst = document.createElement('canvas')
+    dst.width = targetW; dst.height = targetH
+    dst.getContext('2d')!.drawImage(srcCanvas, 0, 0, targetW, targetH)
+    return dst.getContext('2d')!.getImageData(0, 0, targetW, targetH)
+  }
+
   function renderCandidateGrid(
     grid: import('../types/index.js').CandidateGrid,
     history: import('../types/index.js').SelectionHistory,
@@ -853,12 +869,13 @@ import CandidateSection from '../components/CandidateSection.astro'
       renderCandidateGrid(state.grid, state.history, state.cache)
       return
     }
+    const cropImageData = scaleImageDataForWorkers(state.crop.imageData, state.crop.brickHeight ?? 32)
     const ctrl = new AbortController()
     candidateAbortController = ctrl
     spawnCandidateBatch({
       grid: state.grid,
       missing,
-      cropImageData: state.crop.imageData,
+      cropImageData,
       palette,
       cache: state.cache,
       signal: ctrl.signal,
@@ -992,8 +1009,24 @@ import CandidateSection from '../components/CandidateSection.astro'
   .acq-buttons {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: 1.2rem;
     min-width: 180px;
+  }
+
+  .acq-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  @media (max-width: 560px) {
+    .acq-buttons {
+      flex-direction: row;
+      gap: 1rem;
+      min-width: unset;
+      width: 100%;
+    }
+    .acq-group { flex: 1; min-width: 0; }
   }
 
   .acq-buttons button,
@@ -1036,8 +1069,6 @@ import CandidateSection from '../components/CandidateSection.astro'
     color: #888;
     margin: 0;
   }
-
-  .acq-section-gap { height: 0.6rem; }
 
   .crop-height-row {
     display: flex;

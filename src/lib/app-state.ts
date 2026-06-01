@@ -8,7 +8,11 @@ import type {
   BrickHeight,
   CameraSession,
   CapturedPhoto,
+  CandidateGrid,
+  SelectionHistory,
+  CandidateCache,
 } from '../types/index.js'
+import { DEFAULT_DISTANCE, buildInitialGrid as _buildInitialGrid, buildNextGrid as _buildNextGrid } from './candidates/grid.js'
 
 export type { AppState }
 
@@ -154,6 +158,96 @@ export function onGenerateSuccess(
     adjusted: state.adjusted,
     crop: state.adjusted.source,
   }
+}
+
+// ─── Candidate grid (Phase 2A/2B) ────────────────────────────────────────────
+
+export function onCropConfirmed(
+  _state: { phase: 'head-cropping' | 'head-crop-error' },
+  crop: HeadCropSelection,
+  distance = DEFAULT_DISTANCE,
+): Extract<AppState, { phase: 'candidate-grid' }> {
+  const grid = _buildInitialGrid(distance)
+  const history: SelectionHistory = {
+    entries: [{ key: grid.center, stepSize: distance, chosenAt: Date.now() }],
+    activeIndex: 0,
+  }
+  const cache: CandidateCache = new Map()
+  return { phase: 'candidate-grid', crop, grid, history, cache }
+}
+
+export function onWorkerCellReady(
+  state: Extract<AppState, { phase: 'candidate-grid' }>,
+  cellIndex: number,
+  mosaic: Mosaic,
+  durationMs?: number,
+): Extract<AppState, { phase: 'candidate-grid' }> {
+  const cells = state.grid.cells.slice() as CandidateGrid['cells']
+  cells[cellIndex] = { ...cells[cellIndex], status: 'ready', mosaic, durationMs }
+  return { ...state, grid: { ...state.grid, cells } }
+}
+
+export function onWorkerCellError(
+  state: Extract<AppState, { phase: 'candidate-grid' }>,
+  cellIndex: number,
+  errorMessage: string,
+): Extract<AppState, { phase: 'candidate-grid' }> {
+  const cells = state.grid.cells.slice() as CandidateGrid['cells']
+  cells[cellIndex] = { ...cells[cellIndex], status: 'error', errorMessage }
+  return { ...state, grid: { ...state.grid, cells } }
+}
+
+export function onCandidateCellSelected(
+  state: Extract<AppState, { phase: 'candidate-grid' }>,
+  cellIndex: number,
+  distance: number,
+): Extract<AppState, { phase: 'candidate-grid' }> {
+  if (cellIndex === 4) return state
+  const cell = state.grid.cells[cellIndex]
+  if (cell.status !== 'ready') return state
+
+  const selectedKey = cell.key
+  const newGrid = _buildNextGrid(selectedKey, distance)
+
+  for (let i = 0; i < 9; i++) {
+    const cacheKey = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
+    const cached = state.cache.get(cacheKey)
+    if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
+  }
+
+  const prevEntries = state.history.entries.slice(0, state.history.activeIndex + 1)
+  const newHistory: SelectionHistory = {
+    entries: [...prevEntries, { key: selectedKey, stepSize: distance, chosenAt: Date.now() }],
+    activeIndex: prevEntries.length,
+  }
+
+  return { ...state, grid: newGrid, history: newHistory }
+}
+
+export function onHistoryEntryClicked(
+  state: Extract<AppState, { phase: 'candidate-grid' }>,
+  historyIndex: number,
+): Extract<AppState, { phase: 'candidate-grid' }> {
+  if (historyIndex === state.history.activeIndex) return state
+  const entry = state.history.entries[historyIndex]
+  const newHistory: SelectionHistory = { ...state.history, activeIndex: historyIndex }
+
+  const newGrid = _buildNextGrid(entry.key, entry.stepSize)
+  for (let i = 0; i < 9; i++) {
+    const cacheKey = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
+    const cached = state.cache.get(cacheKey)
+    if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
+  }
+
+  return { ...state, grid: newGrid, history: newHistory }
+}
+
+export function onConfirmMosaic(
+  state: Extract<AppState, { phase: 'candidate-grid' }>,
+): Extract<AppState, { phase: 'mosaic-confirmed' }> {
+  const centerCell = state.grid.cells[4]
+  const mosaic = centerCell.mosaic!
+  return { phase: 'mosaic-confirmed', crop: state.crop, mosaic, key: state.grid.center }
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────

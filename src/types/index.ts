@@ -92,6 +92,8 @@ export interface MosaicOptions {
   width?: 32
   height?: BrickHeight
   algorithmVersion?: string
+  brightnessOffset?: number
+  contrastOffset?: number
 }
 
 export interface Mosaic {
@@ -128,6 +130,63 @@ export interface PartsList {
 
 export type RgbGrid = Array<Array<[number, number, number]>>
 
+// ─── Candidate grid ───────────────────────────────────────────────────────────
+
+export interface CandidateKey {
+  brightnessOffset: number  // integer, −100 to 100
+  contrastOffset: number    // integer, −100 to 100
+}
+
+export interface MosaicCandidate {
+  key: CandidateKey
+  status: 'pending' | 'ready' | 'error'
+  mosaic?: Mosaic
+  errorMessage?: string
+  durationMs?: number
+}
+
+export interface CandidateGrid {
+  center: CandidateKey
+  stepSize: number
+  cells: [
+    MosaicCandidate, MosaicCandidate, MosaicCandidate,
+    MosaicCandidate, MosaicCandidate, MosaicCandidate,
+    MosaicCandidate, MosaicCandidate, MosaicCandidate,
+  ]
+  atMinimumStep: boolean
+}
+
+export interface HistoryEntry {
+  key: CandidateKey
+  stepSize: number
+  chosenAt: number
+}
+
+export interface SelectionHistory {
+  entries: HistoryEntry[]
+  activeIndex: number
+}
+
+export type CandidateCache = Map<string, Mosaic>
+
+export interface WorkerInput {
+  index: number
+  imageBuffer: ArrayBuffer
+  imageWidth: number
+  imageHeight: number
+  brightnessOffset: number
+  contrastOffset: number
+  palette: LegoColor[]
+  height: BrickHeight
+}
+
+export interface WorkerOutput {
+  index: number
+  mosaic?: Mosaic
+  error?: string
+  durationMs?: number
+}
+
 // ─── App state ────────────────────────────────────────────────────────────────
 export type AppState =
   // Existing upload phases
@@ -143,8 +202,25 @@ export type AppState =
   // Seeded manual head-height crop (replaces Phase 1A 'cropping')
   | { phase: 'head-cropping'; image: FaceImage; headBounds: HeadBounds; brickHeight: BrickHeight }
   | { phase: 'head-crop-error'; image: FaceImage; headBounds: HeadBounds; error: string }
-  // Downstream phases (unchanged)
+  // Candidate grid (Phase 2A/2B — replaces adjusting/generating in happy path)
+  | {
+      phase: 'candidate-grid'
+      crop: HeadCropSelection
+      grid: CandidateGrid
+      history: SelectionHistory
+      cache: CandidateCache
+      generationAbortController?: AbortController
+    }
+  | {
+      phase: 'mosaic-confirmed'
+      crop: HeadCropSelection
+      mosaic: Mosaic
+      key: CandidateKey
+    }
+  // Downstream phases (retained for backward compatibility)
+  /** @deprecated Use candidate-grid instead */
   | { phase: 'adjusting'; crop: HeadCropSelection; brightness: number; contrast: number }
+  /** @deprecated Use candidate-grid instead */
   | { phase: 'generating'; adjusted: AdjustedImage }
   | { phase: 'result'; mosaic: Mosaic; adjusted: AdjustedImage; crop: HeadCropSelection }
 

@@ -10,20 +10,21 @@
       <h3>LEGO Mosaic</h3>
       <div id="mosaic-grid" class="mosaic-grid" role="img" aria-label="Generated LEGO mosaic"></div>
     </div>
+    <!-- color-matrix element retained in DOM for legacy result path; hidden via parent -->
+    <div id="color-matrix" hidden></div>
   </div>
-  <p class="mosaic-note">32×32 LEGO 1×1 square plates · 1,024 pieces total</p>
 </div>
 
 <style>
   #mosaic-display {
     padding: 1rem;
-    max-width: 900px;
+    max-width: 1100px;
     margin: 0 auto;
   }
 
   .comparison-layout {
     display: flex;
-    gap: 2rem;
+    gap: 1.25rem;
     flex-wrap: wrap;
     justify-content: center;
     align-items: flex-start;
@@ -37,25 +38,25 @@
   }
 
   .comparison-item h3 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #888;
     margin: 0;
   }
 
+  /* Original canvas: height set via JS to match mosaic height; width auto */
   .comparison-canvas {
     border: 1px solid #ddd;
     border-radius: 6px;
-    width: 320px;
-    height: 320px;
-    object-fit: contain;
+    display: block;
+    height: auto;  /* overridden by JS */
+    width: auto;
   }
 
   .mosaic-grid {
     display: grid;
-    grid-template-columns: repeat(32, 10px);
-    grid-template-rows: repeat(32, 10px);
+    /* columns, rows, and cell size set dynamically in JS */
     gap: 0;
     border: 1px solid #ddd;
     border-radius: 6px;
@@ -63,14 +64,20 @@
   }
 
   .mosaic-cell {
-    width: 10px;
-    height: 10px;
+    width: var(--cell, 10px);
+    height: var(--cell, 10px);
   }
 
-  .mosaic-note {
-    text-align: center;
-    font-size: 0.8rem;
-    color: #999;
-    margin-top: 0.75rem;
+  .matrix-cell {
+    width: var(--cell, 10px);
+    height: var(--cell, 10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5px;
+    font-weight: 700;
+    line-height: 1;
+    color: rgba(0,0,0,0.55);
+    overflow: hidden;
   }
 </style>

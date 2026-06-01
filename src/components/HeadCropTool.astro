@@ -1,0 +1,173 @@
+---
+---
+<div id="head-crop-tool" hidden>
+  <p class="hct-instruction">
+    Drag the top and bottom handles to set the crop boundary. Left and right edges are auto-centered.
+  </p>
+
+  <div id="hct-wrapper">
+    <img id="hct-img" alt="Image to crop" />
+    <!-- Dimming overlays and handles (positioned by JS) -->
+    <div id="hct-dim-top"    class="hct-dim"></div>
+    <div id="hct-dim-bottom" class="hct-dim"></div>
+    <div id="hct-dim-left"   class="hct-dim"></div>
+    <div id="hct-dim-right"  class="hct-dim"></div>
+    <div id="hct-frame"></div>
+    <div id="hct-handle-top"    class="hct-handle hct-handle-h" role="slider" aria-label="Top crop boundary"    tabindex="0"></div>
+    <div id="hct-handle-bottom" class="hct-handle hct-handle-h" role="slider" aria-label="Bottom crop boundary" tabindex="0"></div>
+    <div id="hct-handle-left"   class="hct-handle hct-handle-v" role="slider" aria-label="Left crop boundary"   tabindex="0"></div>
+    <div id="hct-handle-right"  class="hct-handle hct-handle-v" role="slider" aria-label="Right crop boundary"  tabindex="0"></div>
+  </div>
+
+  <div class="hct-controls">
+    <label for="hct-brick-height">Mosaic height:</label>
+    <select id="hct-brick-height">
+      <option value="26">26 bricks</option>
+      <option value="28">28 bricks</option>
+      <option value="30">30 bricks</option>
+      <option value="32" selected>32 bricks (square, default)</option>
+      <option value="34">34 bricks</option>
+      <option value="36">36 bricks</option>
+    </select>
+  </div>
+
+  <p id="hct-notice" class="hct-notice" hidden></p>
+
+  <div class="hct-actions">
+    <button id="hct-confirm-btn" type="button">Confirm Crop</button>
+    <button id="hct-reset-btn"   type="button" class="secondary">Reset to Full Image</button>
+  </div>
+</div>
+
+<style>
+  #head-crop-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .hct-instruction {
+    font-size: 0.85rem;
+    color: #666;
+    text-align: center;
+    margin: 0;
+  }
+
+  #hct-wrapper {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    cursor: default;
+    user-select: none;
+  }
+
+  #hct-img {
+    display: block;
+    max-width: 100%;
+    max-height: 65vh;
+    height: auto;
+  }
+
+  .hct-dim {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.52);
+    pointer-events: none;
+  }
+
+  #hct-frame {
+    position: absolute;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+
+  .hct-handle {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Top / bottom handles — full width, drag up/down */
+  .hct-handle-h {
+    left: 0; right: 0;
+    height: 24px;
+    cursor: ns-resize;
+  }
+
+  .hct-handle-h::after {
+    content: '';
+    display: block;
+    width: 52px; height: 7px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  }
+
+  /* Left / right handles — full crop height, drag left/right */
+  .hct-handle-v {
+    width: 24px;
+    cursor: ew-resize;
+  }
+
+  .hct-handle-v::after {
+    content: '';
+    display: block;
+    width: 7px; height: 52px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  }
+
+  .hct-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  #hct-brick-height {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .hct-notice {
+    font-size: 0.85rem;
+    color: #7a6000;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 0.45rem 0.7rem;
+    margin: 0;
+  }
+
+  .hct-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    padding: 0.6rem 1.4rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.15s;
+  }
+
+  #hct-confirm-btn        { background: #e87722; color: white; }
+  #hct-confirm-btn:hover  { background: #d06b1a; }
+  .secondary              { background: #eee; color: #333; }
+  .secondary:hover        { background: #ddd; }
+</style>

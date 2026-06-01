@@ -93,9 +93,14 @@ import CandidateSection from '../components/CandidateSection.astro'
 
       <CandidateSection />
 
-      <AdjustmentPanel />
-      <MosaicDisplay />
+      <!-- Result row: appears below candidate section after Confirm Mosaic -->
+      <div id="result-row" hidden class="result-row">
+        <MosaicDisplay />
+      </div>
 
+      <!-- Legacy adjustment flow (deprecated happy-path) -->
+      <AdjustmentPanel />
+      <!-- PartsList kept in DOM so partsListSection reference resolves; not shown in new flow -->
       <PartsList />
     </main>
   </body>
@@ -215,6 +220,7 @@ import CandidateSection from '../components/CandidateSection.astro'
   const candidateGridEl       = document.getElementById('candidate-grid')!
   const historyStripEl        = document.getElementById('history-strip')!
   const confirmMosaicBtn      = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
+  const resultRowEl           = document.getElementById('result-row')!
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
   const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
@@ -295,6 +301,7 @@ import CandidateSection from '../components/CandidateSection.astro'
     canvas.toBlob(blob => {
       if (!blob) return
       stopStream()
+      resetDownstream()
       pendingFile = new File([blob], 'capture.jpg', { type: 'image/jpeg' })
       acqImage.src = URL.createObjectURL(blob)
       setAcqMode('camera-captured')
@@ -332,6 +339,7 @@ import CandidateSection from '../components/CandidateSection.astro'
     const file = uploadInput.files?.[0]
     if (!file) return
     stopStream()
+    resetDownstream()
     pendingFile = file
     acqImage.src = URL.createObjectURL(file)
     setAcqMode('file-ready')
@@ -520,10 +528,25 @@ import CandidateSection from '../components/CandidateSection.astro'
 
   // ─── App phase rendering ──────────────────────────────────────────────────────
 
+  // Abort in-progress generation and hide all downstream sections.
+  // Called when the user selects a new photo or camera capture.
+  function resetDownstream() {
+    candidateAbortController?.abort()
+    candidateAbortController = null
+    appState = { phase: 'idle' }
+    hide(candidateSectionEl)
+    hide(resultRowEl)
+    hide(mosaicDisplay)
+    hide(partsListSection)
+    hide(adjustmentPanel)
+  }
+
   function renderPhase(state: AppState) {
+    // acquisitionEl is ALWAYS visible — never hidden here.
+    // Only downstream sections are toggled.
     hide(adjustmentPanel)
     hide(mosaicDisplay); hide(partsListSection)
-    hide(candidateSectionEl)
+    hide(candidateSectionEl); hide(resultRowEl)
 
     switch (state.phase) {
       case 'idle':
@@ -535,8 +558,7 @@ import CandidateSection from '../components/CandidateSection.astro'
       case 'preparing':
       case 'head-cropping':
       case 'head-crop-error':
-        show(acquisitionEl)
-        break
+        break  // acquisition section already visible
 
       case 'candidate-grid':
         show(candidateSectionEl)
@@ -544,9 +566,11 @@ import CandidateSection from '../components/CandidateSection.astro'
         break
 
       case 'mosaic-confirmed':
+        show(candidateSectionEl)
+        confirmMosaicBtn.disabled = true
+        show(resultRowEl)
         show(mosaicDisplay)
-        show(partsListSection)
-        renderResult(state.mosaic, state.crop.imageData)
+        renderResult(state.mosaic, state.crop.imageData, 5)
         break
 
       case 'adjusting':
@@ -600,9 +624,7 @@ import CandidateSection from '../components/CandidateSection.astro'
     pendingFile = null
     uploadInput.value = ''
     setAcqMode('idle')
-    appState = onReset(appState)
-    show(acquisitionEl)
-    renderPhase(appState)
+    resetDownstream()
   })
 
   // ─── Mosaic generation ────────────────────────────────────────────────────────
@@ -646,27 +668,26 @@ import CandidateSection from '../components/CandidateSection.astro'
 
   // ─── Result ───────────────────────────────────────────────────────────────────
 
-  function renderResult(mosaic: Mosaic, originalImageData: ImageData) {
-    renderMosaicGrid(mosaic)             // sets display height first
-    renderOriginal(originalImageData, mosaic)
-    renderColorMatrix(mosaic)
+  function renderResult(mosaic: Mosaic, originalImageData: ImageData, cellPx = 10) {
+    renderMosaicGrid(mosaic, cellPx)
+    renderOriginal(originalImageData, mosaic, cellPx)
+    renderColorMatrix(mosaic, cellPx)
     renderPartsList(mosaic)
   }
 
-  function renderOriginal(imageData: ImageData, mosaic: Mosaic) {
+  function renderOriginal(imageData: ImageData, mosaic: Mosaic, cellPx = 10) {
     originalCanvas.width  = imageData.width
     originalCanvas.height = imageData.height
     originalCanvas.getContext('2d')!.putImageData(imageData, 0, 0)
-    // Match the CSS display height to the mosaic grid height
-    const displayH = mosaic.height * 10
+    const displayH = mosaic.height * cellPx
     originalCanvas.style.height = displayH + 'px'
     originalCanvas.style.width  = Math.round(displayH * imageData.width / imageData.height) + 'px'
   }
 
-  function renderMosaicGrid(mosaic: Mosaic) {
+  function renderMosaicGrid(mosaic: Mosaic, cellPx = 10) {
     mosaicGrid.innerHTML = ''
-    mosaicGrid.style.gridTemplateColumns = `repeat(${mosaic.width}, 10px)`
-    mosaicGrid.style.gridTemplateRows    = `repeat(${mosaic.height}, 10px)`
+    mosaicGrid.style.gridTemplateColumns = `repeat(${mosaic.width}, ${cellPx}px)`
+    mosaicGrid.style.gridTemplateRows    = `repeat(${mosaic.height}, ${cellPx}px)`
     const paletteMap = new Map(palette.map(c => [c.id, c]))
     for (const row of mosaic.grid) {
       for (const colorId of row) {
@@ -683,10 +704,10 @@ import CandidateSection from '../components/CandidateSection.astro'
     }
   }
 
-  function renderColorMatrix(mosaic: Mosaic) {
+  function renderColorMatrix(mosaic: Mosaic, cellPx = 10) {
     colorMatrixEl.innerHTML = ''
-    colorMatrixEl.style.gridTemplateColumns = `repeat(${mosaic.width}, 10px)`
-    colorMatrixEl.style.gridTemplateRows    = `repeat(${mosaic.height}, 10px)`
+    colorMatrixEl.style.gridTemplateColumns = `repeat(${mosaic.width}, ${cellPx}px)`
+    colorMatrixEl.style.gridTemplateRows    = `repeat(${mosaic.height}, ${cellPx}px)`
     const paletteMap = new Map(palette.map(c => [c.id, c]))
     for (const row of mosaic.grid) {
       for (const colorId of row) {
@@ -1088,6 +1109,25 @@ import CandidateSection from '../components/CandidateSection.astro'
   .hct-handle-v { width: 24px; cursor: ew-resize; }
   .hct-handle-h::after { content:''; display:block; width:52px; height:7px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4); }
   .hct-handle-v::after { content:''; display:block; width:7px; height:52px; background:white; border-radius:4px; box-shadow:0 1px 5px rgba(0,0,0,0.4); }
+
+  /* ── Result row (below candidate section after confirm) ── */
+  .result-row {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    border-top: 1px solid #e5e5e5;
+    padding-top: 1.5rem;
+  }
+
+  /* Override internal max-widths so components sit as flex columns */
+  .result-row #mosaic-display {
+    flex: 1 1 auto;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+  }
 
   /* ── Privacy notice & error ── */
   .privacy-notice {

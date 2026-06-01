@@ -54,30 +54,30 @@ import HistoryStrip from './HistoryStrip.astro'
 
   .candidate-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .confirm-mosaic-btn {
-    padding: 0.7rem 1.4rem;
-    border: 2px solid #ddd;
+    padding: 0.7rem 1rem;
+    border: none;
     border-radius: 8px;
-    background: white;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: not-allowed;
-    color: #aaa;
-    transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    text-align: center;
+    background: #2563eb;
+    color: white;
+    opacity: 0.4;
+    min-width: 180px;
+    transition: background 0.15s, opacity 0.15s;
   }
 
-  /* Enabled + highlighted when center cell is ready */
   .confirm-mosaic-btn:not(:disabled) {
-    border-color: #2563eb;
-    color: #1d4ed8;
+    opacity: 1;
     cursor: pointer;
-    box-shadow: 0 0 0 2px #93c5fd;
   }
 
   .confirm-mosaic-btn:not(:disabled):hover {
-    background: #eff6ff;
+    background: #1d4ed8;
   }
 </style>

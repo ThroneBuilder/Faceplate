@@ -9,11 +9,10 @@ import type {
   CameraSession,
   CapturedPhoto,
   CandidateGrid,
-  CandidateKey,
-  MosaicCandidate,
   SelectionHistory,
   CandidateCache,
 } from '../types/index.js'
+import { DEFAULT_DISTANCE, buildInitialGrid as _buildInitialGrid, buildNextGrid as _buildNextGrid } from './candidates/grid.js'
 
 export type { AppState }
 
@@ -163,34 +162,14 @@ export function onGenerateSuccess(
 
 // ─── Candidate grid (Phase 2A/2B) ────────────────────────────────────────────
 
-const INITIAL_STEP = 67  // Math.round(100 * 2 / 3)
-
-function makePendingCell(key: CandidateKey): MosaicCandidate {
-  return { key, status: 'pending' }
-}
-
-function buildInitialGrid(): CandidateGrid {
-  const center: CandidateKey = { brightnessOffset: 0, contrastOffset: 0 }
-  const step = INITIAL_STEP
-  const offsets = [-step, 0, step] as const
-  const cells = offsets.flatMap(c =>
-    offsets.map(b => makePendingCell({ brightnessOffset: clampKey(b), contrastOffset: clampKey(c) }))
-  ) as CandidateGrid['cells']
-  return { center, stepSize: step, cells, atMinimumStep: false }
-}
-
-function clampKey(v: number): number {
-  return Math.max(-100, Math.min(100, v))
-}
-
 export function onCropConfirmed(
   _state: { phase: 'head-cropping' | 'head-crop-error' },
   crop: HeadCropSelection,
+  distance = DEFAULT_DISTANCE,
 ): Extract<AppState, { phase: 'candidate-grid' }> {
-  const grid = buildInitialGrid()
-  const initialKey = grid.center
+  const grid = _buildInitialGrid(distance)
   const history: SelectionHistory = {
-    entries: [{ key: initialKey, stepSize: grid.stepSize, chosenAt: Date.now() }],
+    entries: [{ key: grid.center, stepSize: distance, chosenAt: Date.now() }],
     activeIndex: 0,
   }
   const cache: CandidateCache = new Map()
@@ -221,41 +200,24 @@ export function onWorkerCellError(
 export function onCandidateCellSelected(
   state: Extract<AppState, { phase: 'candidate-grid' }>,
   cellIndex: number,
+  distance: number,
 ): Extract<AppState, { phase: 'candidate-grid' }> {
-  if (cellIndex === 4) return state  // center cell — no-op
+  if (cellIndex === 4) return state
   const cell = state.grid.cells[cellIndex]
-  if (cell.status !== 'ready') return state  // not interactive yet
+  if (cell.status !== 'ready') return state
 
   const selectedKey = cell.key
-  const nextStep = Math.max(1, Math.floor(state.grid.stepSize / 2))
-  const offsets = [-nextStep, 0, nextStep] as const
-  const cells = offsets.flatMap(c =>
-    offsets.map(b => makePendingCell({
-      brightnessOffset: clampKey(selectedKey.brightnessOffset + b),
-      contrastOffset: clampKey(selectedKey.contrastOffset + c),
-    }))
-  ) as CandidateGrid['cells']
-  cells[4] = { ...cells[4], status: 'pending' }  // center is the chosen key
+  const newGrid = _buildNextGrid(selectedKey, distance)
 
-  const newGrid: CandidateGrid = {
-    center: selectedKey,
-    stepSize: nextStep,
-    cells,
-    atMinimumStep: nextStep === 1,
-  }
-
-  // Hydrate from cache
   for (let i = 0; i < 9; i++) {
-    const cacheKey = `${cells[i].key.brightnessOffset}:${cells[i].key.contrastOffset}`
+    const cacheKey = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
     const cached = state.cache.get(cacheKey)
-    if (cached) {
-      newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
-    }
+    if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
   }
 
   const prevEntries = state.history.entries.slice(0, state.history.activeIndex + 1)
   const newHistory: SelectionHistory = {
-    entries: [...prevEntries, { key: selectedKey, stepSize: state.grid.stepSize, chosenAt: Date.now() }],
+    entries: [...prevEntries, { key: selectedKey, stepSize: distance, chosenAt: Date.now() }],
     activeIndex: prevEntries.length,
   }
 
@@ -270,27 +232,11 @@ export function onHistoryEntryClicked(
   const entry = state.history.entries[historyIndex]
   const newHistory: SelectionHistory = { ...state.history, activeIndex: historyIndex }
 
-  const step = entry.stepSize
-  const offsets = [-step, 0, step] as const
-  const cells = offsets.flatMap(c =>
-    offsets.map(b => {
-      const key: CandidateKey = {
-        brightnessOffset: clampKey(entry.key.brightnessOffset + b),
-        contrastOffset: clampKey(entry.key.contrastOffset + c),
-      }
-      const cacheKey = `${key.brightnessOffset}:${key.contrastOffset}`
-      const cached = state.cache.get(cacheKey)
-      return cached
-        ? { key, status: 'ready' as const, mosaic: cached }
-        : makePendingCell(key)
-    })
-  ) as CandidateGrid['cells']
-
-  const newGrid: CandidateGrid = {
-    center: entry.key,
-    stepSize: step,
-    cells,
-    atMinimumStep: step === 1,
+  const newGrid = _buildNextGrid(entry.key, entry.stepSize)
+  for (let i = 0; i < 9; i++) {
+    const cacheKey = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
+    const cached = state.cache.get(cacheKey)
+    if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
   }
 
   return { ...state, grid: newGrid, history: newHistory }

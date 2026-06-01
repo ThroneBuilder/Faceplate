@@ -1,6 +1,6 @@
 import type { CandidateGrid, CandidateKey, MosaicCandidate } from '../../types/index.js'
 
-const INITIAL_STEP = 67  // Math.round(100 * 2 / 3)
+export const DEFAULT_DISTANCE = 10
 
 function clamp(v: number): number {
   return Math.max(-100, Math.min(100, v))
@@ -10,38 +10,38 @@ function pending(key: CandidateKey): MosaicCandidate {
   return { key, status: 'pending' }
 }
 
-export function computeNextStep(currentStep: number): number {
-  return Math.max(1, Math.floor(currentStep / 2))
-}
-
 /** Returns 9 keys in row-major order (top-left to bottom-right); index 4 === center. */
 export function computeGridKeys(
   center: CandidateKey,
-  stepSize: number,
+  distance: number,
 ): [CandidateKey, CandidateKey, CandidateKey,
     CandidateKey, CandidateKey, CandidateKey,
     CandidateKey, CandidateKey, CandidateKey] {
-  const offsets = [-stepSize, 0, stepSize] as const
+  const offsets = [-distance, 0, distance] as const
   const keys = offsets.flatMap(dc =>
     offsets.map(db => ({
       brightnessOffset: clamp(center.brightnessOffset + db),
       contrastOffset: clamp(center.contrastOffset + dc),
     }))
   )
-  // Row-major: rows go top→bottom (contrast axis), columns left→right (brightness axis)
   return keys as ReturnType<typeof computeGridKeys>
 }
 
-export function buildInitialGrid(): CandidateGrid {
+export function buildInitialGrid(distance = DEFAULT_DISTANCE): CandidateGrid {
   const center: CandidateKey = { brightnessOffset: 0, contrastOffset: 0 }
-  const keys = computeGridKeys(center, INITIAL_STEP)
+  const keys = computeGridKeys(center, distance)
   const cells = keys.map(pending) as CandidateGrid['cells']
-  return { center, stepSize: INITIAL_STEP, cells, atMinimumStep: false }
+  return { center, stepSize: distance, cells, atMinimumStep: false }
 }
 
-export function buildNextGrid(selectedKey: CandidateKey, currentStep: number): CandidateGrid {
-  const nextStep = computeNextStep(currentStep)
-  const keys = computeGridKeys(selectedKey, nextStep)
+/** Builds the next grid centered on selectedKey at the given distance. */
+export function buildNextGrid(selectedKey: CandidateKey, distance: number): CandidateGrid {
+  const keys = computeGridKeys(selectedKey, distance)
   const cells = keys.map(pending) as CandidateGrid['cells']
-  return { center: selectedKey, stepSize: nextStep, cells, atMinimumStep: nextStep === 1 }
+  return { center: selectedKey, stepSize: distance, cells, atMinimumStep: false }
+}
+
+/** Retained for any existing tests; not used in the main candidate algorithm. */
+export function computeNextStep(currentStep: number): number {
+  return Math.max(1, Math.floor(currentStep / 2))
 }

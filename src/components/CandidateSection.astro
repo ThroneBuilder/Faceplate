@@ -4,69 +4,100 @@ import HistoryStrip from './HistoryStrip.astro'
 ---
 <section id="candidate-section" hidden aria-label="Mosaic candidate selection">
 
-  <div class="candidate-controls">
+  <div class="candidate-layout">
 
-    <div class="candidate-group">
-      <p class="candidate-group-label">Tune Mosaic</p>
-      <div class="slider-row">
-        <label for="candidate-brightness">Brightness</label>
-        <input type="range" id="candidate-brightness" min="-100" max="100" step="1" value="0" />
-        <span id="candidate-brightness-value" class="slider-value">0</span>
+    <!-- Left / above: controls -->
+    <div class="candidate-controls">
+
+      <div class="candidate-group">
+        <p class="candidate-group-label">Tune Mosaic</p>
+        <div class="slider-row">
+          <label for="candidate-brightness">Brightness</label>
+          <input type="range" id="candidate-brightness" min="-100" max="100" step="1" value="0" />
+          <span id="candidate-brightness-value" class="slider-value">0</span>
+        </div>
+        <div class="slider-row">
+          <label for="candidate-contrast">Contrast</label>
+          <input type="range" id="candidate-contrast" min="-100" max="100" step="1" value="0" />
+          <span id="candidate-contrast-value" class="slider-value">0</span>
+        </div>
       </div>
-      <div class="slider-row">
-        <label for="candidate-contrast">Contrast</label>
-        <input type="range" id="candidate-contrast" min="-100" max="100" step="1" value="0" />
-        <span id="candidate-contrast-value" class="slider-value">0</span>
+
+      <div class="candidate-group">
+        <p class="candidate-group-label">Neighbors</p>
+        <div class="slider-row">
+          <label for="candidate-distance">Distance</label>
+          <input type="range" id="candidate-distance" min="2" max="32" step="2" value="16" aria-label="Navigation distance" />
+          <span id="candidate-distance-value" class="slider-value">16</span>
+        </div>
+        <p class="neighbor-hint">Click a neighbor to regenerate around that candidate</p>
+      </div>
+
+      <div class="candidate-actions">
+        <button id="confirm-mosaic-btn" class="confirm-mosaic-btn" type="button" disabled>
+          Confirm Mosaic
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right / below: grid + history -->
+    <div class="candidate-main">
+      <CandidateGrid />
+      <div class="history-area">
+        <p class="history-label">Selection history</p>
+        <HistoryStrip />
       </div>
     </div>
 
-    <div class="candidate-group">
-      <p class="candidate-group-label">Neighbors</p>
-      <div class="slider-row">
-        <label for="candidate-distance">Distance</label>
-        <input type="range" id="candidate-distance" min="2" max="32" step="2" value="16" aria-label="Navigation distance" />
-        <span id="candidate-distance-value" class="slider-value">16</span>
-      </div>
-      <p class="neighbor-hint">Click a neighbor to regenerate around that candidate</p>
-    </div>
-
-  </div>
-
-  <CandidateGrid />
-
-  <div class="history-area">
-    <p class="history-label">Selection history</p>
-    <HistoryStrip />
-  </div>
-
-  <div class="candidate-actions">
-    <button id="confirm-mosaic-btn" class="confirm-mosaic-btn" type="button" disabled>
-      Confirm Mosaic
-    </button>
   </div>
 
 </section>
 
 <style>
   #candidate-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+    display: block;
   }
 
-  /* ── Controls row (mirrors acq-buttons / acq-layout pattern) ── */
-  .candidate-controls {
+  /* ── Two-column layout: controls left, grid right (mirrors acq-layout) ── */
+  .candidate-layout {
     display: flex;
     gap: 1.5rem;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
 
+  .candidate-controls {
+    display: flex;
+    flex-direction: column;   /* groups stacked on wide screens */
+    gap: 1.2rem;
+    min-width: 180px;
+  }
+
+  .candidate-main {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Narrow screens: controls go side-by-side above the grid ── */
+  @media (max-width: 560px) {
+    .candidate-controls {
+      flex-direction: row;
+      min-width: unset;
+      width: 100%;
+      gap: 1rem;
+    }
+    .candidate-group { flex: 1; min-width: 0; }
+  }
+
+  /* ── Control groups ── */
   .candidate-group {
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
-    flex: 1;
-    min-width: 160px;
   }
 
   .candidate-group-label {
@@ -111,14 +142,6 @@ import HistoryStrip from './HistoryStrip.astro'
     color: #888;
   }
 
-  @media (max-width: 560px) {
-    .candidate-controls {
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .candidate-group { min-width: unset; }
-  }
-
   /* ── History ── */
   .history-area {
     display: flex;
@@ -135,10 +158,10 @@ import HistoryStrip from './HistoryStrip.astro'
     color: #888;
   }
 
-  /* ── Confirm button ── */
+  /* ── Confirm button (sits at bottom of controls column) ── */
   .candidate-actions {
     display: flex;
-    justify-content: flex-start;
+    flex-direction: column;
   }
 
   .confirm-mosaic-btn {
@@ -152,7 +175,7 @@ import HistoryStrip from './HistoryStrip.astro'
     background: #2563eb;
     color: white;
     opacity: 0.4;
-    min-width: 180px;
+    width: 100%;
     transition: background 0.15s, opacity 0.15s;
   }
 

@@ -5,13 +5,44 @@ import MosaicMaskEditor from './MosaicMaskEditor.astro'
 
   <h2 class="face-shaping-heading">Shape your face</h2>
 
-  <div class="face-shaping-panels">
-    <div class="panel panel--editor">
-      <MosaicMaskEditor />
+  <div class="face-shaping-layout">
+
+    <!-- Left / above: action sidebar (mirrors acq-buttons) -->
+    <div class="face-shaping-sidebar">
+
+      <p class="sidebar-label">Export</p>
+
+      <button class="sidebar-btn sidebar-btn--download" type="button" disabled>
+        Download
+      </button>
+
+      <div class="sidebar-gap"></div>
+
+      <p class="sidebar-label">Share</p>
+
+      <button class="sidebar-btn sidebar-btn--group" type="button" disabled>
+        Add to Group
+      </button>
+      <input
+        type="text"
+        class="group-name-input"
+        placeholder="Group name"
+        disabled
+        aria-label="Group name"
+      />
+
     </div>
-    <div class="panel panel--cubby">
-      <canvas id="cubby-canvas" class="cubby-canvas"></canvas>
+
+    <!-- Right / below: mask editor + cubby projection -->
+    <div class="face-shaping-panels">
+      <div class="panel panel--editor">
+        <MosaicMaskEditor />
+      </div>
+      <div class="panel panel--cubby">
+        <canvas id="cubby-canvas" class="cubby-canvas"></canvas>
+      </div>
     </div>
+
   </div>
 
 </section>
@@ -31,16 +62,95 @@ import MosaicMaskEditor from './MosaicMaskEditor.astro'
     text-align: center;
   }
 
-  .face-shaping-panels {
+  /* ── Two-column layout: sidebar left, panels right (mirrors acq-layout) ── */
+  .face-shaping-layout {
     display: flex;
     gap: 1.5rem;
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
+  .face-shaping-sidebar {
+    display: flex;
+    flex-direction: column;   /* stacked on wide screens */
+    gap: 0.6rem;
+    min-width: 180px;
+  }
+
+  .face-shaping-panels {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* ── Narrow screens: sidebar goes side-by-side above panels ── */
+  @media (max-width: 560px) {
+    .face-shaping-sidebar {
+      flex-direction: row;
+      flex-wrap: wrap;
+      min-width: unset;
+      width: 100%;
+    }
+    .face-shaping-sidebar .sidebar-label { width: 100%; }
+    .face-shaping-panels { min-width: unset; }
+  }
+
+  /* ── Sidebar labels ── */
+  .sidebar-label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+  }
+
+  .sidebar-gap { height: 0.4rem; }
+
+  /* ── Sidebar buttons ── */
+  .sidebar-btn {
+    display: block;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: not-allowed;
+    text-align: center;
+    opacity: 0.4;
+    color: white;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  .sidebar-btn--download { background: #2563eb; }
+  .sidebar-btn--group    { background: #2c6e49; }
+
+  .sidebar-btn:not(:disabled) {
+    opacity: 1;
+    cursor: pointer;
+  }
+
+  /* ── Group name input ── */
+  .group-name-input {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.5;
+    box-sizing: border-box;
+  }
+
+  /* ── Panels ── */
   .panel {
     flex: 1 1 0;
-    min-width: 240px;
+    min-width: 200px;
   }
 
   .cubby-canvas {

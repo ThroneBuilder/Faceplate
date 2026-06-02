@@ -165,7 +165,7 @@ export function onGenerateSuccess(
 // ─── Candidate grid (Phase 2A/2B) ────────────────────────────────────────────
 
 export function onCropConfirmed(
-  _state: { phase: 'head-cropping' | 'head-crop-error' },
+  _state: AppState,
   crop: HeadCropSelection,
   distance = DEFAULT_DISTANCE,
 ): Extract<AppState, { phase: 'candidate-grid' }> {

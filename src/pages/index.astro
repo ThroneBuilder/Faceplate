@@ -166,6 +166,9 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   // ─── App state ────────────────────────────────────────────────────────────────
 
   let appState: AppState = { phase: 'idle' }
+  type CandidateGridState = Extract<AppState, { phase: 'candidate-grid' }>
+  // Preserved while in face-shaping so candidate tuning stays live
+  let lastCandidateGridState: CandidateGridState | null = null
 
   // ─── Acquisition state (local to the panel) ───────────────────────────────────
 
@@ -222,12 +225,17 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   const hctBrickHeight  = document.getElementById('hct-brick-height') as HTMLSelectElement
   const hctNotice       = document.getElementById('hct-notice')!
 
-  const candidateSectionEl    = document.getElementById('candidate-section')!
-  const candidateDistanceEl   = document.getElementById('candidate-distance') as HTMLSelectElement
-  const candidateGridEl       = document.getElementById('candidate-grid')!
-  const historyStripEl        = document.getElementById('history-strip')!
-  const confirmMosaicBtn      = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
-  const resultRowEl           = document.getElementById('result-row')!
+  const candidateSectionEl       = document.getElementById('candidate-section')!
+  const candidateBrightnessEl    = document.getElementById('candidate-brightness') as HTMLInputElement
+  const candidateContrastEl      = document.getElementById('candidate-contrast') as HTMLInputElement
+  const candidateBrightnessValue = document.getElementById('candidate-brightness-value')!
+  const candidateContrastValue   = document.getElementById('candidate-contrast-value')!
+  const candidateDistanceEl      = document.getElementById('candidate-distance') as HTMLInputElement
+  const candidateDistanceValue   = document.getElementById('candidate-distance-value')!
+  const candidateGridEl          = document.getElementById('candidate-grid')!
+  const historyStripEl           = document.getElementById('history-strip')!
+  const confirmMosaicBtn         = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
+  const resultRowEl              = document.getElementById('result-row')!
 
   const faceShapingSectionEl  = document.getElementById('face-shaping-section')!
   const maskEditorGridEl      = document.getElementById('mask-editor-grid')!
@@ -384,8 +392,11 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
 
     const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
-    hideCropOverlay()
-    appState = onCropConfirmed(appState as { phase: 'head-cropping' }, crop, getDistance())
+    // Abort any in-progress generation and clear stale candidate state
+    candidateAbortController?.abort()
+    candidateAbortController = null
+    lastCandidateGridState = null
+    appState = onCropConfirmed(appState, crop, getDistance())
     renderPhase(appState)
     startCandidateBatch()
   })
@@ -545,6 +556,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   function resetDownstream() {
     candidateAbortController?.abort()
     candidateAbortController = null
+    lastCandidateGridState = null
     appState = { phase: 'idle' }
     hide(candidateSectionEl)
     hide(faceShapingSectionEl)
@@ -586,8 +598,11 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       }
 
       case 'face-shaping': {
-        show(candidateSectionEl)        // keep candidate section visible (cumulative)
-        confirmMosaicBtn.disabled = true // mosaic already confirmed
+        show(candidateSectionEl)
+        if (lastCandidateGridState) {
+          renderCandidateGrid(lastCandidateGridState.grid, lastCandidateGridState.history, lastCandidateGridState.cache)
+          confirmMosaicBtn.disabled = lastCandidateGridState.grid.cells[4].status !== 'ready'
+        }
         show(faceShapingSectionEl)
         const bp = renderMaskEditor(state.mosaic, state.mask)
         syncCubbyHeight(state.mosaic, bp)
@@ -794,6 +809,12 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     history: import('../types/index.js').SelectionHistory,
     cache: import('../types/index.js').CandidateCache,
   ) {
+    // Sync Candidate sliders to current grid center
+    candidateBrightnessEl.value    = String(grid.center.brightnessOffset)
+    candidateContrastEl.value      = String(grid.center.contrastOffset)
+    candidateBrightnessValue.textContent = String(grid.center.brightnessOffset)
+    candidateContrastValue.textContent   = String(grid.center.contrastOffset)
+
     // Update cells
     for (let i = 0; i < 9; i++) {
       const cell = grid.cells[i]
@@ -863,13 +884,17 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       if (idx !== history.activeIndex) {
         div.style.cursor = 'pointer'
         div.addEventListener('click', () => {
-          if (appState.phase !== 'candidate-grid') return
+          const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+                   : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+          if (!cs) return
           candidateAbortController?.abort()
           candidateAbortController = new AbortController()
-          appState = onHistoryEntryClicked(
-            appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-            idx,
-          )
+          const newCs = onHistoryEntryClicked(cs, idx)
+          if (appState.phase === 'candidate-grid') {
+            appState = newCs
+          } else {
+            lastCandidateGridState = newCs
+          }
           renderPhase(appState)
           // Spawn workers for any cells not in cache
           startCandidateBatch()
@@ -883,97 +908,159 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   }
 
   function startCandidateBatch() {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    const missing = hydrateGridFromCache(state.grid, state.cache)
+    const cs: CandidateGridState | null =
+      appState.phase === 'candidate-grid' ? appState as CandidateGridState
+      : appState.phase === 'face-shaping' ? lastCandidateGridState
+      : null
+    if (!cs) return
+
+    const missing = hydrateGridFromCache(cs.grid, cs.cache)
     if (missing.length === 0) {
-      renderCandidateGrid(state.grid, state.history, state.cache)
+      renderCandidateGrid(cs.grid, cs.history, cs.cache)
       return
     }
-    const cropImageData = scaleImageDataForWorkers(state.crop.imageData, state.crop.brickHeight ?? 32)
+    const cropImageData = scaleImageDataForWorkers(cs.crop.imageData, cs.crop.brickHeight ?? 32)
     const ctrl = new AbortController()
     candidateAbortController = ctrl
+
+    function getCurrentCs(): CandidateGridState | null {
+      return appState.phase === 'candidate-grid' ? appState as CandidateGridState
+           : appState.phase === 'face-shaping' ? lastCandidateGridState
+           : null
+    }
+
     spawnCandidateBatch({
-      grid: state.grid,
+      grid: cs.grid,
       missing,
       cropImageData,
       palette,
-      cache: state.cache,
+      cache: cs.cache,
       signal: ctrl.signal,
       onCellReady: (index, mosaic, durationMs) => {
-        if (appState.phase !== 'candidate-grid') return
         if (ctrl.signal.aborted) return
-        state.cache.set(`${state.grid.cells[index].key.brightnessOffset}:${state.grid.cells[index].key.contrastOffset}`, mosaic)
-        appState = onWorkerCellReady(
-          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-          index, mosaic, durationMs,
-        )
+        const cur = getCurrentCs()
+        if (!cur) return
+        cur.cache.set(`${cur.grid.cells[index].key.brightnessOffset}:${cur.grid.cells[index].key.contrastOffset}`, mosaic)
+        const updated = onWorkerCellReady(cur, index, mosaic, durationMs)
+        if (appState.phase === 'candidate-grid') {
+          appState = updated
+        } else {
+          lastCandidateGridState = updated
+        }
         if (durationMs) console.log(`[candidate] cell ${index} ready in ${durationMs.toFixed(0)}ms`)
-        renderCandidateGrid(
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
-        )
+        const latest = getCurrentCs()
+        if (latest) renderCandidateGrid(latest.grid, latest.history, latest.cache)
       },
       onCellError: (index, error) => {
-        if (appState.phase !== 'candidate-grid') return
         if (ctrl.signal.aborted) return
-        appState = onWorkerCellError(
-          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-          index, error,
-        )
-        renderCandidateGrid(
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
-        )
+        const cur = getCurrentCs()
+        if (!cur) return
+        const updated = onWorkerCellError(cur, index, error)
+        if (appState.phase === 'candidate-grid') {
+          appState = updated
+        } else {
+          lastCandidateGridState = updated
+        }
+        const latest = getCurrentCs()
+        if (latest) renderCandidateGrid(latest.grid, latest.history, latest.cache)
       },
     })
   }
 
   // Grid cell clicks (delegated from candidateGridEl)
   candidateGridEl.addEventListener('click', (e) => {
-    if (appState.phase !== 'candidate-grid') return
+    const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+             : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+    if (!cs) return
     const cellEl = (e.target as Element).closest('[data-cell-index]') as HTMLElement | null
     if (!cellEl) return
     const idx = Number(cellEl.dataset.cellIndex)
-    if (idx === 4) return  // center — no-op
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    if (state.grid.cells[idx].status !== 'ready') return
+    if (idx === 4) return
+    if (cs.grid.cells[idx].status !== 'ready') return
 
     candidateAbortController?.abort()
     candidateAbortController = new AbortController()
-    appState = onCandidateCellSelected(state, idx, getDistance())
+    const newCs = onCandidateCellSelected(cs, idx, getDistance())
+    if (appState.phase === 'candidate-grid') {
+      appState = newCs
+    } else {
+      lastCandidateGridState = newCs
+    }
     renderPhase(appState)
     startCandidateBatch()
   })
 
   // Confirm Mosaic button
   confirmMosaicBtn.addEventListener('click', () => {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    if (state.grid.cells[4].status !== 'ready') return
-    candidateAbortController?.abort()
-    candidateAbortController = null
-    appState = onConfirmMosaic(state)
-    renderPhase(appState)
+    if (appState.phase === 'candidate-grid') {
+      const state = appState as CandidateGridState
+      if (state.grid.cells[4].status !== 'ready') return
+      candidateAbortController?.abort()
+      candidateAbortController = null
+      lastCandidateGridState = state
+      appState = onConfirmMosaic(state)
+      renderPhase(appState)
+    } else if (appState.phase === 'face-shaping' && lastCandidateGridState) {
+      const cs = lastCandidateGridState
+      if (cs.grid.cells[4].status !== 'ready') return
+      // Re-confirm: update the mosaic from the new center, keep existing mask
+      const fss = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+      appState = { ...fss, mosaic: cs.grid.cells[4].mosaic!, key: cs.grid.center }
+      renderPhase(appState)
+    }
   })
 
-  // Distance dropdown — rebuild grid around current center at new distance
-  candidateDistanceEl.addEventListener('change', () => {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    const newGrid = buildNextGrid(state.grid.center, getDistance())
+  // Shared helper: rebuild grid around an arbitrary center + distance, hydrate from cache.
+  // Works from candidate-grid phase or (via lastCandidateGridState) from face-shaping.
+  function rebuildGrid(brightnessOffset: number, contrastOffset: number) {
+    const cs: CandidateGridState | null =
+      appState.phase === 'candidate-grid' ? appState as CandidateGridState
+      : appState.phase === 'face-shaping' ? lastCandidateGridState
+      : null
+    if (!cs) return
+    const newCenter = { brightnessOffset, contrastOffset }
+    const newGrid = buildNextGrid(newCenter, getDistance())
     for (let i = 0; i < 9; i++) {
       const ck = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
-      const cached = state.cache.get(ck)
+      const cached = cs.cache.get(ck)
       if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
     }
-    appState = { ...state, grid: newGrid }
+    if (appState.phase === 'candidate-grid') {
+      appState = { ...cs, grid: newGrid }
+    } else {
+      lastCandidateGridState = { ...cs, grid: newGrid }
+    }
     candidateAbortController?.abort()
     candidateAbortController = new AbortController()
     renderPhase(appState)
     startCandidateBatch()
+  }
+
+  // Candidate brightness slider
+  candidateBrightnessEl.addEventListener('input', () => {
+    candidateBrightnessValue.textContent = candidateBrightnessEl.value
+  })
+  candidateBrightnessEl.addEventListener('change', () => {
+    rebuildGrid(Number(candidateBrightnessEl.value), Number(candidateContrastEl.value))
+  })
+
+  // Candidate contrast slider
+  candidateContrastEl.addEventListener('input', () => {
+    candidateContrastValue.textContent = candidateContrastEl.value
+  })
+  candidateContrastEl.addEventListener('change', () => {
+    rebuildGrid(Number(candidateBrightnessEl.value), Number(candidateContrastEl.value))
+  })
+
+  // Neighbors distance slider
+  candidateDistanceEl.addEventListener('input', () => {
+    candidateDistanceValue.textContent = getDistance().toString()
+  })
+  candidateDistanceEl.addEventListener('change', () => {
+    const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+             : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+    if (!cs) return
+    rebuildGrid(cs.grid.center.brightnessOffset, cs.grid.center.contrastOffset)
   })
 
   // ─── Face shaping ─────────────────────────────────────────────────────────────

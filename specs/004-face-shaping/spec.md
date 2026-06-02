@@ -14,11 +14,11 @@
 
 ### User Story 1 — View the Face Shaping Step (Priority: P1)
 
-After confirming the mosaic, the user immediately sees the "Shape your face" panel. The left side shows the full mosaic with a pre-computed mask already applied — masked cells are visually dimmed or hidden. The right side shows a live preview of how the masked mosaic will look when placed in the Hall of Faces cubby image. The mask is seeded from a best-guess face boundary derived from the original head-detection result.
+After confirming the mosaic, the user immediately sees the "Shape your face" panel. The left side shows the full mosaic with a pre-computed mask already applied — masked cells are displayed at approximately 50% opacity (their brick colour dimmed), so the user can see what is being masked without losing context. The right side shows a live preview of how the masked mosaic will look when placed in the Hall of Faces cubby image. The mask is seeded from a best-guess face boundary derived from the original head-detection result.
 
 **Why this priority**: Without the two-panel layout and initial mask, there is nothing for the user to interact with. This is the foundation for all subsequent interaction.
 
-**Independent Test**: After clicking "Confirm Mosaic," a tester can verify that the "Shape your face" heading appears, the left panel shows the mosaic with some cells pre-dimmed at the edges, and the right panel shows the cubby image with the masked mosaic composited over the white plate area.
+**Independent Test**: After clicking "Confirm Mosaic," a tester can verify that the "Shape your face" heading appears, the left panel shows the mosaic with edge cells visibly dimmed (~50% opacity) at the edges, and the right panel shows the cubby image with the masked mosaic composited over the white plate area.
 
 **Acceptance Scenarios**:
 
@@ -80,15 +80,15 @@ The right panel composites the masked mosaic onto the Hall of Faces cubby photog
 
 - **FR-001**: The face shaping step MUST appear immediately after the user confirms the mosaic and MUST display the heading "Shape your face."
 - **FR-002**: The face shaping view MUST present two panels side by side: an interactive masked mosaic on the left and a cubby projection preview on the right.
-- **FR-003**: The interactive mosaic MUST be displayed at brick-level resolution with each cell individually clickable.
+- **FR-003**: The interactive mosaic MUST be displayed at brick-level resolution with each cell individually clickable. Masked cells MUST be rendered at approximately 50% opacity (their brick colour dimmed) so they remain visible but clearly distinguished from unmasked cells.
 - **FR-004**: The mask MUST be initialized automatically with a best-guess face boundary derived from the head-detection data captured during the crop step, masking columns outside the detected face region on each row.
 - **FR-005**: Clicking an unmasked cell MUST mask all cells in that row from the clicked cell to the nearest horizontal edge (left or right, whichever requires fewer columns).
-- **FR-006**: Clicking a cell that was already masked (at the masked boundary) MUST unmask that row's cells — retreating the mask edge by one step for that row.
+- **FR-006**: Clicking a cell that is already masked MUST unmask all cells in that row from the clicked cell to the nearest horizontal edge — the same range that would have been masked by clicking an unmasked cell at that position. The operation is a pure toggle of that edge segment.
 - **FR-007**: Mask changes MUST be reflected in the cubby projection immediately, without any additional user action.
 - **FR-008**: The cubby projection MUST composite the masked mosaic onto `Cubby.JPEG`, centered over the white 16×16 plate area in the photograph.
 - **FR-009**: Cells that are masked MUST appear absent in the cubby projection, showing the cubby background through their positions.
 - **FR-010**: A shadow effect MUST be rendered on the cubby surface at the boundary between the face-shaped mosaic and the masked (absent) area, reflecting the shape of the face mask.
-- **FR-011**: No UI elements beyond the face shaping step MUST be presented in this phase (export and downstream steps are out of scope).
+- **FR-011**: No button, action, or navigation element beyond the face shaping panel itself MUST be present. The screen is the terminal state of this phase — there is no "Done," "Export," or "Continue" control. Downstream UI is out of scope.
 
 ### Key Entities
 
@@ -110,6 +110,13 @@ The right panel composites the masked mosaic onto the Hall of Faces cubby photog
 
 ---
 
+## Clarifications
+
+### Session 2026-06-01
+
+- Q: What should masked cells look like in the interactive mosaic panel? → A: Greyed/dimmed — brick colour shown at ~50% opacity, so masked cells remain visible but clearly distinguished.
+- Q: What end-of-step action should the face shaping screen have? → A: None — no button at all. The screen is a purely informational terminal state; export/continue UI is deferred to a future phase.
+
 ## Assumptions
 
 - The head-detection bounds from the crop step (Phase 1C) are accessible in the confirmed mosaic state and can seed the initial mask. The initial mask converts the face oval/rectangle from pixel coordinates to brick columns per row.
@@ -118,5 +125,5 @@ The right panel composites the masked mosaic onto the Hall of Faces cubby photog
 - The shadow effect is a directional soft shadow applied only to the exposed cubby surface at the face-mask edges (left and right vertical boundaries), not to the top or bottom.
 - Masked cells are represented as fully transparent in the mosaic overlay; no partial masking or feathering is applied to individual cells.
 - The mask operates column-by-column within each row (per-row left and right trim). There is no per-cell toggle — clicks always set or clear the boundary for an entire edge segment of a row.
-- "For now, remove any UI after this step" means no export, share, or continuation button is included in this feature; the face shaping view is the terminal screen in this phase.
+- "For now, remove any UI after this step" means the face shaping view is strictly terminal — no button of any kind (not even a placeholder "Done") is shown. The user simply views the result. Export and continuation are deferred to a future phase.
 - The mosaic confirmed from Phase 2A/2B carries all data needed for this step: the brick grid, brick height, width, and the original crop's head bounds.

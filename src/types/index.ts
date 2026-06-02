@@ -130,6 +130,17 @@ export interface PartsList {
 
 export type RgbGrid = Array<Array<[number, number, number]>>
 
+// ─── Face shaping mask ────────────────────────────────────────────────────────
+export interface FaceMaskRow {
+  leftCol: number   // first visible column (inclusive); leftCol > rightCol means fully masked
+  rightCol: number  // last visible column (inclusive)
+}
+
+export interface FaceMask {
+  rows: FaceMaskRow[]  // length === mosaic.height; index i = mosaic row i
+  mosaicWidth: number
+}
+
 // ─── Candidate grid ───────────────────────────────────────────────────────────
 
 export interface CandidateKey {
@@ -215,6 +226,13 @@ export type AppState =
       phase: 'mosaic-confirmed'
       crop: HeadCropSelection
       mosaic: Mosaic
+      key: CandidateKey
+    }
+  | {
+      phase: 'face-shaping'
+      crop: HeadCropSelection
+      mosaic: Mosaic
+      mask: FaceMask
       key: CandidateKey
     }
   // Downstream phases (retained for backward compatibility)

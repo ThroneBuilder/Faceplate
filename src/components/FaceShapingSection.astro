@@ -1,0 +1,58 @@
+---
+import MosaicMaskEditor from './MosaicMaskEditor.astro'
+---
+<section id="face-shaping-section" hidden aria-label="Face shaping">
+
+  <h2 class="face-shaping-heading">Shape your face</h2>
+
+  <div class="face-shaping-panels">
+    <div class="panel panel--editor">
+      <MosaicMaskEditor />
+    </div>
+    <div class="panel panel--cubby">
+      <canvas id="cubby-canvas" class="cubby-canvas"></canvas>
+    </div>
+  </div>
+
+</section>
+
+<style>
+  #face-shaping-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .face-shaping-heading {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #222;
+    text-align: center;
+  }
+
+  .face-shaping-panels {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .panel {
+    flex: 1 1 0;
+    min-width: 240px;
+  }
+
+  .cubby-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+  }
+
+  @media (max-width: 600px) {
+    .face-shaping-panels { flex-direction: column; }
+    .panel { min-width: unset; width: 100%; }
+  }
+</style>

@@ -242,6 +242,42 @@ export type AppState =
   | { phase: 'generating'; adjusted: AdjustedImage }
   | { phase: 'result'; mosaic: Mosaic; adjusted: AdjustedImage; crop: HeadCropSelection }
 
+// ─── Session persistence (Phase 005) ─────────────────────────────────────────
+
+export interface SessionMetadata {
+  version: 1
+  savedAt: number
+  cropParams: {
+    topY: number; bottomY: number
+    leftX: number; rightX: number
+    cropWidthPx: number; cropHeightPx: number
+    brickHeight: BrickHeight
+  }
+  candidateKey: { brightnessOffset: number; contrastOffset: number }
+  distance: number
+  mosaicGrid: number[][]
+  mosaicWidth: number
+  mosaicHeight: BrickHeight
+  maskRows: Array<{ leftCol: number; rightCol: number }>
+}
+
+export interface PersistedSession {
+  metadata: SessionMetadata
+  imageBlob: Blob
+}
+
+// ─── Gallery (Phase 005) ──────────────────────────────────────────────────────
+
+export interface GalleryResponse {
+  success: true
+  redirectUrl: string
+}
+
+export interface GalleryErrorResponse {
+  success: false
+  error: string
+}
+
 // ─── Errors ───────────────────────────────────────────────────────────────────
 export type PipelineErrorCode =
   | 'EMPTY_PALETTE'

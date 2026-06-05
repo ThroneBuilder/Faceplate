@@ -2,171 +2,375 @@
   {
     "id": 1,
     "name": "White",
-    "rgb": [242, 243, 242]
+    "rgb": [
+      242,
+      243,
+      242
+    ],
+    "brickLinkColorId": 1,
+    "studioColorId": 1
   },
   {
     "id": 2,
     "name": "Black",
-    "rgb": [27, 42, 52]
+    "rgb": [
+      27,
+      42,
+      52
+    ],
+    "brickLinkColorId": 11,
+    "studioColorId": 26
   },
   {
     "id": 3,
     "name": "Bright Red",
-    "rgb": [196, 40, 27]
+    "rgb": [
+      196,
+      40,
+      27
+    ],
+    "brickLinkColorId": 5,
+    "studioColorId": 21
   },
   {
     "id": 4,
     "name": "Bright Blue",
-    "rgb": [13, 105, 171]
+    "rgb": [
+      13,
+      105,
+      171
+    ],
+    "brickLinkColorId": 7,
+    "studioColorId": 23
   },
   {
     "id": 5,
     "name": "Bright Yellow",
-    "rgb": [240, 188, 60]
+    "rgb": [
+      240,
+      188,
+      60
+    ],
+    "brickLinkColorId": 3,
+    "studioColorId": 24
   },
   {
     "id": 6,
     "name": "Bright Green",
-    "rgb": [75, 151, 74]
+    "rgb": [
+      75,
+      151,
+      74
+    ],
+    "brickLinkColorId": 36,
+    "studioColorId": 37
   },
   {
     "id": 7,
     "name": "Orange",
-    "rgb": [218, 133, 64]
+    "rgb": [
+      218,
+      133,
+      64
+    ],
+    "brickLinkColorId": 4,
+    "studioColorId": 106
   },
   {
     "id": 8,
     "name": "Reddish Brown",
-    "rgb": [105, 64, 39]
+    "rgb": [
+      105,
+      64,
+      39
+    ],
+    "brickLinkColorId": 88,
+    "studioColorId": 192
   },
   {
     "id": 9,
     "name": "Dark Red",
-    "rgb": [123, 46, 47]
+    "rgb": [
+      123,
+      46,
+      47
+    ],
+    "brickLinkColorId": 59,
+    "studioColorId": 154
   },
   {
     "id": 10,
     "name": "Dark Blue",
-    "rgb": [20, 48, 68]
+    "rgb": [
+      20,
+      48,
+      68
+    ],
+    "brickLinkColorId": 63,
+    "studioColorId": 140
   },
   {
     "id": 11,
     "name": "Dark Green",
-    "rgb": [39, 70, 44]
+    "rgb": [
+      39,
+      70,
+      44
+    ],
+    "brickLinkColorId": 80,
+    "studioColorId": 141
   },
   {
     "id": 12,
     "name": "Dark Orange",
-    "rgb": [169, 85, 0]
+    "rgb": [
+      169,
+      85,
+      0
+    ],
+    "brickLinkColorId": 68,
+    "studioColorId": 38
   },
   {
     "id": 13,
     "name": "Dark Brown",
-    "rgb": [53, 33, 0]
+    "rgb": [
+      53,
+      33,
+      0
+    ],
+    "brickLinkColorId": 120,
+    "studioColorId": 308
   },
   {
     "id": 14,
     "name": "Tan",
-    "rgb": [215, 197, 153]
+    "rgb": [
+      215,
+      197,
+      153
+    ],
+    "brickLinkColorId": 2,
+    "studioColorId": 5
   },
   {
     "id": 15,
     "name": "Dark Tan",
-    "rgb": [137, 125, 98]
+    "rgb": [
+      137,
+      125,
+      98
+    ],
+    "brickLinkColorId": 69,
+    "studioColorId": 138
   },
   {
     "id": 16,
     "name": "Light Bluish Gray",
-    "rgb": [156, 163, 168]
+    "rgb": [
+      156,
+      163,
+      168
+    ],
+    "brickLinkColorId": 86,
+    "studioColorId": 194
   },
   {
     "id": 17,
     "name": "Dark Bluish Gray",
-    "rgb": [99, 102, 96]
+    "rgb": [
+      99,
+      102,
+      96
+    ],
+    "brickLinkColorId": 85,
+    "studioColorId": 199
   },
   {
     "id": 18,
     "name": "Nougat",
-    "rgb": [204, 142, 105]
+    "rgb": [
+      204,
+      142,
+      105
+    ],
+    "brickLinkColorId": 28,
+    "studioColorId": 18
   },
   {
     "id": 19,
     "name": "Light Nougat",
-    "rgb": [250, 200, 152]
+    "rgb": [
+      250,
+      200,
+      152
+    ],
+    "brickLinkColorId": 90,
+    "studioColorId": 283
   },
   {
     "id": 20,
     "name": "Medium Nougat",
-    "rgb": [175, 116, 70]
+    "rgb": [
+      175,
+      116,
+      70
+    ],
+    "brickLinkColorId": 150,
+    "studioColorId": 312
   },
   {
     "id": 21,
     "name": "Dark Nougat",
-    "rgb": [145, 80, 50]
+    "rgb": [
+      145,
+      80,
+      50
+    ],
+    "brickLinkColorId": 225,
+    "studioColorId": 128
   },
   {
     "id": 22,
     "name": "Medium Blue",
-    "rgb": [115, 169, 209]
+    "rgb": [
+      115,
+      169,
+      209
+    ],
+    "brickLinkColorId": 42,
+    "studioColorId": 102
   },
   {
     "id": 23,
     "name": "Medium Green",
-    "rgb": [161, 196, 140]
+    "rgb": [
+      161,
+      196,
+      140
+    ],
+    "brickLinkColorId": 37,
+    "studioColorId": 29
   },
   {
     "id": 24,
     "name": "Sand Blue",
-    "rgb": [114, 137, 155]
+    "rgb": [
+      114,
+      137,
+      155
+    ],
+    "brickLinkColorId": 55,
+    "studioColorId": 135
   },
   {
     "id": 25,
     "name": "Sand Green",
-    "rgb": [118, 151, 121]
+    "rgb": [
+      118,
+      151,
+      121
+    ],
+    "brickLinkColorId": 48,
+    "studioColorId": 151
   },
   {
     "id": 26,
     "name": "Dark Purple",
-    "rgb": [63, 35, 95]
+    "rgb": [
+      63,
+      35,
+      95
+    ],
+    "brickLinkColorId": 89,
+    "studioColorId": 268
   },
   {
     "id": 27,
     "name": "Bright Pink",
-    "rgb": [227, 28, 121]
+    "rgb": [
+      227,
+      28,
+      121
+    ],
+    "brickLinkColorId": 104,
+    "studioColorId": 222
   },
   {
     "id": 28,
     "name": "Lavender",
-    "rgb": [201, 192, 231]
+    "rgb": [
+      201,
+      192,
+      231
+    ],
+    "brickLinkColorId": 154,
+    "studioColorId": 325
   },
   {
     "id": 29,
     "name": "Coral",
-    "rgb": [255, 112, 100]
+    "rgb": [
+      255,
+      112,
+      100
+    ],
+    "brickLinkColorId": 220,
+    "studioColorId": 353
   },
   {
     "id": 30,
     "name": "Bright Light Yellow",
-    "rgb": [249, 241, 132]
+    "rgb": [
+      249,
+      241,
+      132
+    ],
+    "brickLinkColorId": 103,
+    "studioColorId": 226
   },
   {
     "id": 31,
     "name": "Medium Lavender",
-    "rgb": [168, 148, 188]
+    "rgb": [
+      168,
+      148,
+      188
+    ],
+    "brickLinkColorId": 157,
+    "studioColorId": 324
   },
   {
     "id": 32,
     "name": "Magenta",
-    "rgb": [156, 41, 108]
+    "rgb": [
+      156,
+      41,
+      108
+    ],
+    "brickLinkColorId": 71,
+    "studioColorId": 124
   },
   {
     "id": 33,
     "name": "Dark Azure",
-    "rgb": [7, 139, 201]
+    "rgb": [
+      7,
+      139,
+      201
+    ],
+    "brickLinkColorId": 153,
+    "studioColorId": 321
   },
   {
     "id": 34,
     "name": "Medium Azure",
-    "rgb": [109, 176, 209]
+    "rgb": [
+      109,
+      176,
+      209
+    ],
+    "brickLinkColorId": 156,
+    "studioColorId": 322
   }
 ]

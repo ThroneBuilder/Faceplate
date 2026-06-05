@@ -18,11 +18,11 @@
 
 **Purpose**: Add new dependencies and infrastructure required by all three user stories.
 
-- [ ] T001 Add `jszip` and `@astrojs/node` to `package.json` and run `pnpm install`; verify existing `pnpm test` still passes
-- [ ] T002 Switch `astro.config.mjs` to `output: 'hybrid'` and add `@astrojs/node` adapter with `mode: 'standalone'`; verify `pnpm build` succeeds
-- [ ] T003 Add `FaceMaskRow`, `SessionMetadata`, and `PersistedSession` interfaces to `src/types/index.ts` per `data-model.md` — no breaking changes to existing types
-- [ ] T004 [P] Inspect `src/data/lego-palette.json` and confirm `brickLinkColorId` and `studioColorId` are populated for all entries; document any missing values in a comment at the top of `contracts/pipeline-api.md`
-- [ ] T005 Create `gallery-groups.json` at repo root with an empty groups array: `{ "groups": [] }` — admin populates before gallery is used
+- [x] T001 Add `jszip` and `@astrojs/node` to `package.json` and run `pnpm install`; verify existing `pnpm test` still passes
+- [x] T002 Switch `astro.config.mjs` to `output: 'hybrid'` and add `@astrojs/node` adapter with `mode: 'standalone'`; verify `pnpm build` succeeds
+- [x] T003 Add `FaceMaskRow`, `SessionMetadata`, and `PersistedSession` interfaces to `src/types/index.ts` per `data-model.md` — no breaking changes to existing types
+- [x] T004 [P] Inspect `src/data/lego-palette.json` and confirm `brickLinkColorId` and `studioColorId` are populated for all entries; document any missing values in a comment at the top of `contracts/pipeline-api.md`
+- [x] T005 Create `gallery-groups.json` at repo root with an empty groups array: `{ "groups": [] }` — admin populates before gallery is used
 
 **Checkpoint**: `pnpm test` passes, `pnpm build` succeeds with hybrid output.
 
@@ -34,7 +34,7 @@
 
 **⚠️ CRITICAL**: All three user stories share `SessionMetadata`. Complete Phase 1 before proceeding.
 
-- [ ] T006 Add `GalleryResponse` and `GalleryErrorResponse` interfaces to `src/types/index.ts` per `data-model.md` — used by the gallery submit handler
+- [x] T006 Add `GalleryResponse` and `GalleryErrorResponse` interfaces to `src/types/index.ts` per `data-model.md` — used by the gallery submit handler
 
 **Checkpoint**: `pnpm test` passes with new types present.
 
@@ -48,11 +48,11 @@
 
 ### Implementation
 
-- [ ] T007 [P] [US1] Implement `serialiseSession`, `isExpired` pure functions in `src/lib/session/session-state.ts` — per `contracts/pipeline-api.md` and `data-model.md`; `SessionMetadata` version=1, `savedAt = Date.now()`, expiry = 30 days
-- [ ] T008 [P] [US1] Unit tests for `src/lib/session/session-state.ts` in `tests/unit/session-state.test.ts` — 4 cases: `serialiseSession` fields; `isExpired` fresh (false); `isExpired` expired (true); `isExpired` exactly 30 days (true) — per `quickstart.md`
-- [ ] T009 [US1] Implement `saveSession`, `loadSession`, `clearSession` in `src/lib/session/session-state.ts` — uses IndexedDB database `"faceplate"`, object store `"sessions"`, key `"faceplate-session"`; `loadSession` calls `isExpired` and deletes the record + returns null if expired — depends on T007
-- [ ] T010 [US1] Wire session auto-save into `src/pages/index.astro` — import `saveSession`, `clearSession`; call `saveSession` (no debounce) after `onCropConfirmed` and after `onFaceShapingStart` in the Confirm Mosaic handler; call `saveSession` debounced 1 s after `onMaskCellClicked` / after drag completes (pointer-up) in the mask drag handler; call `clearSession` in `resetDownstream()` — depends on T009
-- [ ] T011 [US1] Wire session restore into `src/pages/index.astro` — call `loadSession()` before `renderPhase(appState)` at page init; if session is present, reconstruct `appState` as `face-shaping` from `SessionMetadata` fields (rebuild `Mosaic` from `mosaicGrid`, rebuild `FaceMask` from `maskRows`, pass through crop/key); cache `session.imageBlob` for later use in download; call `renderPhase(appState)` — depends on T009, T010
+- [x] T007 [P] [US1] Implement `serialiseSession`, `isExpired` pure functions in `src/lib/session/session-state.ts` — per `contracts/pipeline-api.md` and `data-model.md`; `SessionMetadata` version=1, `savedAt = Date.now()`, expiry = 30 days
+- [x] T008 [P] [US1] Unit tests for `src/lib/session/session-state.ts` in `tests/unit/session-state.test.ts` — 4 cases: `serialiseSession` fields; `isExpired` fresh (false); `isExpired` expired (true); `isExpired` exactly 30 days (true) — per `quickstart.md`
+- [x] T009 [US1] Implement `saveSession`, `loadSession`, `clearSession` in `src/lib/session/session-state.ts` — uses IndexedDB database `"faceplate"`, object store `"sessions"`, key `"faceplate-session"`; `loadSession` calls `isExpired` and deletes the record + returns null if expired — depends on T007
+- [x] T010 [US1] Wire session auto-save into `src/pages/index.astro` — import `saveSession`, `clearSession`; call `saveSession` (no debounce) after `onCropConfirmed` and after `onFaceShapingStart` in the Confirm Mosaic handler; call `saveSession` debounced 1 s after `onMaskCellClicked` / after drag completes (pointer-up) in the mask drag handler; call `clearSession` in `resetDownstream()` — depends on T009
+- [x] T011 [US1] Wire session restore into `src/pages/index.astro` — call `loadSession()` before `renderPhase(appState)` at page init; if session is present, reconstruct `appState` as `face-shaping` from `SessionMetadata` fields (rebuild `Mosaic` from `mosaicGrid`, rebuild `FaceMask` from `maskRows`, pass through crop/key); cache `session.imageBlob` for later use in download; call `renderPhase(appState)` — depends on T009, T010
 
 **Checkpoint**: Auto-save and restore work end-to-end in the browser. `pnpm test` passes (including `session-state.test.ts`).
 
@@ -66,13 +66,13 @@
 
 ### Implementation
 
-- [ ] T012 [P] [US2] Implement `generateBrickLinkXml(mosaic, mask, palette)` in `src/lib/export/bricklink-xml.ts` — groups visible cells by colour, counts quantities, produces BrickLink wanted-list XML per `contracts/pipeline-api.md`; omits colours with null `brickLinkColorId`; returns `{ xml, omittedColours }` — pure function, node-testable
-- [ ] T013 [P] [US2] Unit tests for `src/lib/export/bricklink-xml.ts` in `tests/unit/bricklink-xml.test.ts` — 5 cases: single colour; multiple colours; masked cells excluded; missing brickLinkColorId omitted; valid XML structure — per `contracts/pipeline-api.md`
-- [ ] T014 [P] [US2] Implement `generateStudioLdr(mosaic, mask, palette)` in `src/lib/export/studio-ldr.ts` — one LDraw line per visible cell using `studioColorId` (fallback 16); position `x = col×20, z = row×20`; header lines; returns `{ ldr, placeholderColours }` — pure function, node-testable
-- [ ] T015 [P] [US2] Unit tests for `src/lib/export/studio-ldr.ts` in `tests/unit/studio-ldr.test.ts` — 4 cases: single brick correct line; masked cells omitted; coordinate mapping (row 2 col 3 → x=60, z=40); missing studioColorId uses colour 16 — per `contracts/pipeline-api.md`
-- [ ] T016 [US2] Implement `renderFaceMosaicPng(mosaic, mask, palette, brickPx?)` in `src/lib/export/face-mosaic-png.ts` — Canvas 2D, `brickPx` default 10; `clearRect` full canvas first (transparent); `fillRect` each visible cell with brick colour; `canvas.toBlob('image/png')` — browser only, not node-testable — depends on T003
-- [ ] T017 [US2] Implement `downloadResultsZip(mosaic, mask, palette, originalImageBlob)` in `src/lib/export/download-zip.ts` — uses JSZip; calls `renderFaceMosaicPng`, `generateBrickLinkXml`, `generateStudioLdr`; adds `original-image.jpg` (convert Blob to ArrayBuffer); adds `readme.md` (static template referencing Faceplate.me and describing each file); `zip.generateAsync({type:'blob'})` → `URL.createObjectURL` → `<a download="faceplate-results.zip">` trigger — depends on T012, T014, T016
-- [ ] T018 [US2] Enable "Download" button in `src/components/FaceShapingSection.astro` (remove `disabled`); wire `downloadBtn` click handler in `src/pages/index.astro` — calls `downloadResultsZip(appState.mosaic, appState.mask, palette, sessionImageBlob)` when `appState.phase === 'face-shaping'` — depends on T017, T011
+- [x] T012 [P] [US2] Implement `generateBrickLinkXml(mosaic, mask, palette)` in `src/lib/export/bricklink-xml.ts` — groups visible cells by colour, counts quantities, produces BrickLink wanted-list XML per `contracts/pipeline-api.md`; omits colours with null `brickLinkColorId`; returns `{ xml, omittedColours }` — pure function, node-testable
+- [x] T013 [P] [US2] Unit tests for `src/lib/export/bricklink-xml.ts` in `tests/unit/bricklink-xml.test.ts` — 5 cases: single colour; multiple colours; masked cells excluded; missing brickLinkColorId omitted; valid XML structure — per `contracts/pipeline-api.md`
+- [x] T014 [P] [US2] Implement `generateStudioLdr(mosaic, mask, palette)` in `src/lib/export/studio-ldr.ts` — one LDraw line per visible cell using `studioColorId` (fallback 16); position `x = col×20, z = row×20`; header lines; returns `{ ldr, placeholderColours }` — pure function, node-testable
+- [x] T015 [P] [US2] Unit tests for `src/lib/export/studio-ldr.ts` in `tests/unit/studio-ldr.test.ts` — 4 cases: single brick correct line; masked cells omitted; coordinate mapping (row 2 col 3 → x=60, z=40); missing studioColorId uses colour 16 — per `contracts/pipeline-api.md`
+- [x] T016 [US2] Implement `renderFaceMosaicPng(mosaic, mask, palette, brickPx?)` in `src/lib/export/face-mosaic-png.ts` — Canvas 2D, `brickPx` default 10; `clearRect` full canvas first (transparent); `fillRect` each visible cell with brick colour; `canvas.toBlob('image/png')` — browser only, not node-testable — depends on T003
+- [x] T017 [US2] Implement `downloadResultsZip(mosaic, mask, palette, originalImageBlob)` in `src/lib/export/download-zip.ts` — uses JSZip; calls `renderFaceMosaicPng`, `generateBrickLinkXml`, `generateStudioLdr`; adds `original-image.jpg` (convert Blob to ArrayBuffer); adds `readme.md` (static template referencing Faceplate.me and describing each file); `zip.generateAsync({type:'blob'})` → `URL.createObjectURL` → `<a download="faceplate-results.zip">` trigger — depends on T012, T014, T016
+- [x] T018 [US2] Enable "Download" button in `src/components/FaceShapingSection.astro` (remove `disabled`); wire `downloadBtn` click handler in `src/pages/index.astro` — calls `downloadResultsZip(appState.mosaic, appState.mask, palette, sessionImageBlob)` when `appState.phase === 'face-shaping'` — depends on T017, T011
 
 **Checkpoint**: `pnpm test` passes. Download ZIP works in browser — all five files present and valid.
 
@@ -86,10 +86,10 @@
 
 ### Implementation
 
-- [ ] T019 [P] [US3] Create `src/pages/gallery/[slug].astro` — placeholder stub page (content is deferred to a future spec); reads the `slug` param, shows "Gallery coming soon — [slug]" heading; purpose here is only to establish a valid redirect target URL so the submit flow has somewhere to redirect; full mosaic display in the gallery (US3 acceptance scenario 2) is out of scope for this phase
-- [ ] T020 [P] [US3] Create `gallery-groups.json` at repo root with one test group: `{ "groups": [{ "slug": "test-group", "displayName": "Test Group" }] }` — T005 created the empty file; this populates it for testing (admins add entries here for real groups)
-- [ ] T021 [US3] Implement `src/pages/api/gallery/submit.ts` Astro API route — `export const prerender = false`; parses `multipart/form-data` request (`group_name`, `mosaic` file ≤2 MB); reads `gallery-groups.json` to validate group slug; writes PNG to `public/gallery/{slug}/{uuid}.png`; returns JSON `{ success: true, redirectUrl: '/gallery/{slug}' }` on success or `{ success: false, error: '...' }` on failure — per `contracts/pipeline-api.md` — depends on T002 (hybrid mode)
-- [ ] T022 [US3] Enable "Add to Group" button and text input in `src/components/FaceShapingSection.astro` (remove `disabled`); wire submit handler in `src/pages/index.astro` — validates non-empty group name; calls `renderFaceMosaicPng` to get PNG Blob; builds `FormData`; `fetch('/api/gallery/submit', ...)`; on success redirects via `window.location.href`; on failure shows inline error message below the text input — depends on T016, T021
+- [x] T019 [P] [US3] Create `src/pages/gallery/[slug].astro` — placeholder stub page (content is deferred to a future spec); reads the `slug` param, shows "Gallery coming soon — [slug]" heading; purpose here is only to establish a valid redirect target URL so the submit flow has somewhere to redirect; full mosaic display in the gallery (US3 acceptance scenario 2) is out of scope for this phase
+- [x] T020 [P] [US3] Create `gallery-groups.json` at repo root with one test group: `{ "groups": [{ "slug": "test-group", "displayName": "Test Group" }] }` — T005 created the empty file; this populates it for testing (admins add entries here for real groups)
+- [x] T021 [US3] Implement `src/pages/api/gallery/submit.ts` Astro API route — `export const prerender = false`; parses `multipart/form-data` request (`group_name`, `mosaic` file ≤2 MB); reads `gallery-groups.json` to validate group slug; writes PNG to `public/gallery/{slug}/{uuid}.png`; returns JSON `{ success: true, redirectUrl: '/gallery/{slug}' }` on success or `{ success: false, error: '...' }` on failure — per `contracts/pipeline-api.md` — depends on T002 (hybrid mode)
+- [x] T022 [US3] Enable "Add to Group" button and text input in `src/components/FaceShapingSection.astro` (remove `disabled`); wire submit handler in `src/pages/index.astro` — validates non-empty group name; calls `renderFaceMosaicPng` to get PNG Blob; builds `FormData`; `fetch('/api/gallery/submit', ...)`; on success redirects via `window.location.href`; on failure shows inline error message below the text input — depends on T016, T021
 
 **Checkpoint**: Submit with known group → redirect to gallery page. Submit with unknown group → inline error. `pnpm build` + deploy on Render.com succeeds.
 
@@ -97,10 +97,10 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T023 [P] Run `pnpm test` — verify all existing 156+ tests pass plus new `session-state.test.ts`, `bricklink-xml.test.ts`, `studio-ldr.test.ts` (target: 170+ tests)
+- [x] T023 [P] Run `pnpm test` — verify all existing 156+ tests pass plus new `session-state.test.ts`, `bricklink-xml.test.ts`, `studio-ldr.test.ts` (target: 170+ tests)
 - [ ] T024 Manually verify session persistence in Chrome and Safari: complete workflow → close tab → reopen → confirm app resumes at face-shaping step within 3 seconds with mosaic and mask intact (SC-001)
 - [ ] T025 Manually verify Download ZIP in Chrome and Safari: open `face-mosaic.png` in an image viewer (confirm transparent background + brick colours), import `bricklink-wanted.xml` into BrickLink Wanted List (confirm no parse errors), open `studio-model.ldr` in BrickLink Studio (confirm flat plate grid renders), and read `readme.md` (confirm Faceplate.me link present) — SC-002, SC-004
-- [ ] T026 [P] Add `public/gallery/.gitkeep` so the gallery directory is tracked; add `public/gallery/**/*.png` to `.gitignore` so submitted mosaics are not committed to the repo
+- [x] T026 [P] Add `public/gallery/.gitkeep` so the gallery directory is tracked; add `public/gallery/**/*.png` to `.gitignore` so submitted mosaics are not committed to the repo
 
 ---
 

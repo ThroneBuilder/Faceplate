@@ -11,8 +11,10 @@ import type {
   CandidateGrid,
   SelectionHistory,
   CandidateCache,
+  FaceMask,
 } from '../types/index.js'
 import { DEFAULT_DISTANCE, buildInitialGrid as _buildInitialGrid, buildNextGrid as _buildNextGrid } from './candidates/grid.js'
+import { buildInitialMask, toggleMaskCell } from './face-shaping/mask.js'
 
 export type { AppState }
 
@@ -163,7 +165,7 @@ export function onGenerateSuccess(
 // ─── Candidate grid (Phase 2A/2B) ────────────────────────────────────────────
 
 export function onCropConfirmed(
-  _state: { phase: 'head-cropping' | 'head-crop-error' },
+  _state: AppState,
   crop: HeadCropSelection,
   distance = DEFAULT_DISTANCE,
 ): Extract<AppState, { phase: 'candidate-grid' }> {
@@ -248,6 +250,23 @@ export function onConfirmMosaic(
   const centerCell = state.grid.cells[4]
   const mosaic = centerCell.mosaic!
   return { phase: 'mosaic-confirmed', crop: state.crop, mosaic, key: state.grid.center }
+}
+
+// ─── Face shaping (Phase 004) ─────────────────────────────────────────────────
+
+export function onFaceShapingStart(
+  state: Extract<AppState, { phase: 'mosaic-confirmed' }>,
+): Extract<AppState, { phase: 'face-shaping' }> {
+  const mask: FaceMask = buildInitialMask(state.mosaic.width, state.mosaic.height)
+  return { phase: 'face-shaping', crop: state.crop, mosaic: state.mosaic, mask, key: state.key }
+}
+
+export function onMaskCellClicked(
+  state: Extract<AppState, { phase: 'face-shaping' }>,
+  row: number,
+  col: number,
+): Extract<AppState, { phase: 'face-shaping' }> {
+  return { ...state, mask: toggleMaskCell(state.mask, row, col) }
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────

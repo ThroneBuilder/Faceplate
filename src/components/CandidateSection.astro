@@ -4,68 +4,145 @@ import HistoryStrip from './HistoryStrip.astro'
 ---
 <section id="candidate-section" hidden aria-label="Mosaic candidate selection">
 
-  <div id="candidate-instruction" class="candidate-instruction">
-    <span>Click a candidate to regenerate this far away:</span>
-    <select id="candidate-distance" aria-label="Navigation distance">
-      <option value="2">2</option>
-      <option value="4">4</option>
-      <option value="6">6</option>
-      <option value="8">8</option>
-      <option value="10">10</option>
-      <option value="12">12</option>
-      <option value="14">14</option>
-      <option value="16" selected>16</option>
-      <option value="18">18</option>
-      <option value="20">20</option>
-      <option value="22">22</option>
-      <option value="24">24</option>
-      <option value="26">26</option>
-      <option value="28">28</option>
-      <option value="30">30</option>
-      <option value="32">32</option>
-    </select>
-  </div>
+  <div class="candidate-layout">
 
-  <CandidateGrid />
+    <!-- Left / above: controls -->
+    <div class="candidate-controls">
 
-  <div class="history-area">
-    <p class="history-label">Selection history</p>
-    <HistoryStrip />
-  </div>
+      <div class="candidate-group">
+        <p class="candidate-group-label">Tune Mosaic</p>
+        <div class="slider-row">
+          <label for="candidate-brightness">Brightness</label>
+          <input type="range" id="candidate-brightness" min="-100" max="100" step="1" value="0" />
+          <span id="candidate-brightness-value" class="slider-value">0</span>
+        </div>
+        <div class="slider-row">
+          <label for="candidate-contrast">Contrast</label>
+          <input type="range" id="candidate-contrast" min="-100" max="100" step="1" value="0" />
+          <span id="candidate-contrast-value" class="slider-value">0</span>
+        </div>
+      </div>
 
-  <div class="candidate-actions">
-    <button id="confirm-mosaic-btn" class="confirm-mosaic-btn" type="button" disabled>
-      Confirm Mosaic
-    </button>
+      <div class="candidate-group">
+        <p class="candidate-group-label">Neighbors</p>
+        <div class="slider-row">
+          <label for="candidate-distance">Distance</label>
+          <input type="range" id="candidate-distance" min="2" max="32" step="2" value="16" aria-label="Navigation distance" />
+          <span id="candidate-distance-value" class="slider-value">16</span>
+        </div>
+        <p class="neighbor-hint">Click a neighbor to regenerate around that candidate</p>
+      </div>
+
+      <div class="candidate-actions">
+        <button id="confirm-mosaic-btn" class="confirm-mosaic-btn" type="button" disabled>
+          Confirm Mosaic
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right / below: grid + history -->
+    <div class="candidate-main">
+      <CandidateGrid />
+      <div class="history-area">
+        <p class="history-label">Selection history</p>
+        <HistoryStrip />
+      </div>
+    </div>
+
   </div>
 
 </section>
 
 <style>
   #candidate-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
+    display: block;
   }
 
-  .candidate-instruction {
+  /* ── Two-column layout: controls left, grid right (mirrors acq-layout) ── */
+  .candidate-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .candidate-controls {
+    display: flex;
+    flex-direction: column;   /* groups stacked on wide screens */
+    gap: 1.2rem;
+    min-width: 180px;
+  }
+
+  .candidate-main {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* ── Narrow screens: controls go side-by-side above the grid ── */
+  @media (max-width: 560px) {
+    .candidate-controls {
+      flex-direction: row;
+      min-width: unset;
+      width: 100%;
+      gap: 1rem;
+    }
+    .candidate-group { flex: 1; min-width: 0; }
+  }
+
+  /* ── Control groups ── */
+  .candidate-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .candidate-group-label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+  }
+
+  .slider-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    justify-content: center;
-    margin: 0;
-    font-size: 0.88rem;
-    color: #555;
+    font-size: 0.82rem;
+    color: #444;
   }
 
-  #candidate-distance {
-    padding: 0.25rem 0.4rem;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 0.88rem;
+  .slider-row label {
+    width: 4.5rem;
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .slider-row input[type="range"] {
+    flex: 1;
     cursor: pointer;
+    accent-color: #2563eb;
   }
 
+  .slider-value {
+    width: 2.2rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  .neighbor-hint {
+    margin: 0.15rem 0 0;
+    font-size: 0.78rem;
+    color: #888;
+  }
+
+  /* ── History ── */
   .history-area {
     display: flex;
     flex-direction: column;
@@ -81,9 +158,10 @@ import HistoryStrip from './HistoryStrip.astro'
     color: #888;
   }
 
+  /* ── Confirm button (sits at bottom of controls column) ── */
   .candidate-actions {
     display: flex;
-    justify-content: flex-start;
+    flex-direction: column;
   }
 
   .confirm-mosaic-btn {
@@ -97,7 +175,7 @@ import HistoryStrip from './HistoryStrip.astro'
     background: #2563eb;
     color: white;
     opacity: 0.4;
-    min-width: 180px;
+    width: 100%;
     transition: background 0.15s, opacity 0.15s;
   }
 

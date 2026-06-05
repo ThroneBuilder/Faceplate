@@ -3,6 +3,7 @@ import AdjustmentPanel from '../components/AdjustmentPanel.astro'
 import MosaicDisplay from '../components/MosaicDisplay.astro'
 import PartsList from '../components/PartsList.astro'
 import CandidateSection from '../components/CandidateSection.astro'
+import FaceShapingSection from '../components/FaceShapingSection.astro'
 ---
 
 <!doctype html>
@@ -92,6 +93,8 @@ import CandidateSection from '../components/CandidateSection.astro'
 
       <CandidateSection />
 
+      <FaceShapingSection />
+
       <!-- Result row: appears below candidate section after Confirm Mosaic -->
       <div id="result-row" hidden class="result-row">
         <MosaicDisplay />
@@ -121,10 +124,14 @@ import CandidateSection from '../components/CandidateSection.astro'
     onAdjustmentChanged, onGenerateClicked, onGenerateSuccess, onReset,
     onCropConfirmed, onWorkerCellReady, onWorkerCellError,
     onCandidateCellSelected, onHistoryEntryClicked, onConfirmMosaic,
+    onFaceShapingStart, onMaskCellClicked,
   } from '../lib/app-state.js'
   import { spawnCandidateBatch } from '../lib/candidates/worker-pool.js'
   import { hydrateGridFromCache } from '../lib/candidates/cache.js'
   import { buildNextGrid } from '../lib/candidates/grid.js'
+  import type { FaceMask } from '../types/index.js'
+  import { isCellVisible } from '../lib/face-shaping/mask.js'
+  import { renderCubbyProjection, loadCubbyImage, CUBBY_W, CUBBY_H } from '../lib/face-shaping/cubby-render.js'
   import PALETTE_RAW from '../data/lego-palette.json'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
@@ -159,6 +166,9 @@ import CandidateSection from '../components/CandidateSection.astro'
   // ─── App state ────────────────────────────────────────────────────────────────
 
   let appState: AppState = { phase: 'idle' }
+  type CandidateGridState = Extract<AppState, { phase: 'candidate-grid' }>
+  // Preserved while in face-shaping so candidate tuning stays live
+  let lastCandidateGridState: CandidateGridState | null = null
 
   // ─── Acquisition state (local to the panel) ───────────────────────────────────
 
@@ -215,12 +225,21 @@ import CandidateSection from '../components/CandidateSection.astro'
   const hctBrickHeight  = document.getElementById('hct-brick-height') as HTMLSelectElement
   const hctNotice       = document.getElementById('hct-notice')!
 
-  const candidateSectionEl    = document.getElementById('candidate-section')!
-  const candidateDistanceEl   = document.getElementById('candidate-distance') as HTMLSelectElement
-  const candidateGridEl       = document.getElementById('candidate-grid')!
-  const historyStripEl        = document.getElementById('history-strip')!
-  const confirmMosaicBtn      = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
-  const resultRowEl           = document.getElementById('result-row')!
+  const candidateSectionEl       = document.getElementById('candidate-section')!
+  const candidateBrightnessEl    = document.getElementById('candidate-brightness') as HTMLInputElement
+  const candidateContrastEl      = document.getElementById('candidate-contrast') as HTMLInputElement
+  const candidateBrightnessValue = document.getElementById('candidate-brightness-value')!
+  const candidateContrastValue   = document.getElementById('candidate-contrast-value')!
+  const candidateDistanceEl      = document.getElementById('candidate-distance') as HTMLInputElement
+  const candidateDistanceValue   = document.getElementById('candidate-distance-value')!
+  const candidateGridEl          = document.getElementById('candidate-grid')!
+  const historyStripEl           = document.getElementById('history-strip')!
+  const confirmMosaicBtn         = document.getElementById('confirm-mosaic-btn') as HTMLButtonElement
+  const resultRowEl              = document.getElementById('result-row')!
+
+  const faceShapingSectionEl  = document.getElementById('face-shaping-section')!
+  const maskEditorGridEl      = document.getElementById('mask-editor-grid')!
+  const cubbyCanvasEl         = document.getElementById('cubby-canvas') as HTMLCanvasElement
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
   const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
@@ -373,8 +392,11 @@ import CandidateSection from '../components/CandidateSection.astro'
     const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
 
     const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
-    hideCropOverlay()
-    appState = onCropConfirmed(appState as { phase: 'head-cropping' }, crop, getDistance())
+    // Abort any in-progress generation and clear stale candidate state
+    candidateAbortController?.abort()
+    candidateAbortController = null
+    lastCandidateGridState = null
+    appState = onCropConfirmed(appState, crop, getDistance())
     renderPhase(appState)
     startCandidateBatch()
   })
@@ -534,8 +556,10 @@ import CandidateSection from '../components/CandidateSection.astro'
   function resetDownstream() {
     candidateAbortController?.abort()
     candidateAbortController = null
+    lastCandidateGridState = null
     appState = { phase: 'idle' }
     hide(candidateSectionEl)
+    hide(faceShapingSectionEl)
     hide(resultRowEl)
     hide(mosaicDisplay)
     hide(partsListSection)
@@ -543,11 +567,11 @@ import CandidateSection from '../components/CandidateSection.astro'
   }
 
   function renderPhase(state: AppState) {
-    // acquisitionEl is ALWAYS visible — never hidden here.
-    // Only downstream sections are toggled.
+    // acquisitionEl and candidateSectionEl are NEVER hidden here — cumulative UI.
+    // Once shown, they stay visible until resetDownstream() clears them.
     hide(adjustmentPanel)
     hide(mosaicDisplay); hide(partsListSection)
-    hide(candidateSectionEl); hide(resultRowEl)
+    hide(resultRowEl); hide(faceShapingSectionEl)
 
     switch (state.phase) {
       case 'idle':
@@ -566,13 +590,25 @@ import CandidateSection from '../components/CandidateSection.astro'
         renderCandidateGrid(state.grid, state.history, state.cache)
         break
 
-      case 'mosaic-confirmed':
+      case 'mosaic-confirmed': {
+        // Auto-transition to face-shaping — no user action required (FR-001)
+        appState = onFaceShapingStart(state)
+        renderPhase(appState)
+        return
+      }
+
+      case 'face-shaping': {
         show(candidateSectionEl)
-        confirmMosaicBtn.disabled = true
-        show(resultRowEl)
-        show(mosaicDisplay)
-        renderResult(state.mosaic, state.crop.imageData, 5)
+        if (lastCandidateGridState) {
+          renderCandidateGrid(lastCandidateGridState.grid, lastCandidateGridState.history, lastCandidateGridState.cache)
+          confirmMosaicBtn.disabled = lastCandidateGridState.grid.cells[4].status !== 'ready'
+        }
+        show(faceShapingSectionEl)
+        const bp = renderMaskEditor(state.mosaic, state.mask)
+        syncCubbyHeight(state.mosaic, bp)
+        renderCubbyProjectionIfReady(state)
         break
+      }
 
       case 'adjusting':
       case 'generating':
@@ -773,6 +809,12 @@ import CandidateSection from '../components/CandidateSection.astro'
     history: import('../types/index.js').SelectionHistory,
     cache: import('../types/index.js').CandidateCache,
   ) {
+    // Sync Candidate sliders to current grid center
+    candidateBrightnessEl.value    = String(grid.center.brightnessOffset)
+    candidateContrastEl.value      = String(grid.center.contrastOffset)
+    candidateBrightnessValue.textContent = String(grid.center.brightnessOffset)
+    candidateContrastValue.textContent   = String(grid.center.contrastOffset)
+
     // Update cells
     for (let i = 0; i < 9; i++) {
       const cell = grid.cells[i]
@@ -842,13 +884,17 @@ import CandidateSection from '../components/CandidateSection.astro'
       if (idx !== history.activeIndex) {
         div.style.cursor = 'pointer'
         div.addEventListener('click', () => {
-          if (appState.phase !== 'candidate-grid') return
+          const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+                   : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+          if (!cs) return
           candidateAbortController?.abort()
           candidateAbortController = new AbortController()
-          appState = onHistoryEntryClicked(
-            appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-            idx,
-          )
+          const newCs = onHistoryEntryClicked(cs, idx)
+          if (appState.phase === 'candidate-grid') {
+            appState = newCs
+          } else {
+            lastCandidateGridState = newCs
+          }
           renderPhase(appState)
           // Spawn workers for any cells not in cache
           startCandidateBatch()
@@ -862,97 +908,284 @@ import CandidateSection from '../components/CandidateSection.astro'
   }
 
   function startCandidateBatch() {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    const missing = hydrateGridFromCache(state.grid, state.cache)
+    const cs: CandidateGridState | null =
+      appState.phase === 'candidate-grid' ? appState as CandidateGridState
+      : appState.phase === 'face-shaping' ? lastCandidateGridState
+      : null
+    if (!cs) return
+
+    const missing = hydrateGridFromCache(cs.grid, cs.cache)
     if (missing.length === 0) {
-      renderCandidateGrid(state.grid, state.history, state.cache)
+      renderCandidateGrid(cs.grid, cs.history, cs.cache)
       return
     }
-    const cropImageData = scaleImageDataForWorkers(state.crop.imageData, state.crop.brickHeight ?? 32)
+    const cropImageData = scaleImageDataForWorkers(cs.crop.imageData, cs.crop.brickHeight ?? 32)
     const ctrl = new AbortController()
     candidateAbortController = ctrl
+
+    function getCurrentCs(): CandidateGridState | null {
+      return appState.phase === 'candidate-grid' ? appState as CandidateGridState
+           : appState.phase === 'face-shaping' ? lastCandidateGridState
+           : null
+    }
+
     spawnCandidateBatch({
-      grid: state.grid,
+      grid: cs.grid,
       missing,
       cropImageData,
       palette,
-      cache: state.cache,
+      cache: cs.cache,
       signal: ctrl.signal,
       onCellReady: (index, mosaic, durationMs) => {
-        if (appState.phase !== 'candidate-grid') return
         if (ctrl.signal.aborted) return
-        state.cache.set(`${state.grid.cells[index].key.brightnessOffset}:${state.grid.cells[index].key.contrastOffset}`, mosaic)
-        appState = onWorkerCellReady(
-          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-          index, mosaic, durationMs,
-        )
+        const cur = getCurrentCs()
+        if (!cur) return
+        cur.cache.set(`${cur.grid.cells[index].key.brightnessOffset}:${cur.grid.cells[index].key.contrastOffset}`, mosaic)
+        const updated = onWorkerCellReady(cur, index, mosaic, durationMs)
+        if (appState.phase === 'candidate-grid') {
+          appState = updated
+        } else {
+          lastCandidateGridState = updated
+        }
         if (durationMs) console.log(`[candidate] cell ${index} ready in ${durationMs.toFixed(0)}ms`)
-        renderCandidateGrid(
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
-        )
+        const latest = getCurrentCs()
+        if (latest) renderCandidateGrid(latest.grid, latest.history, latest.cache)
       },
       onCellError: (index, error) => {
-        if (appState.phase !== 'candidate-grid') return
         if (ctrl.signal.aborted) return
-        appState = onWorkerCellError(
-          appState as Extract<typeof appState, { phase: 'candidate-grid' }>,
-          index, error,
-        )
-        renderCandidateGrid(
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).grid,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).history,
-          (appState as Extract<typeof appState, { phase: 'candidate-grid' }>).cache,
-        )
+        const cur = getCurrentCs()
+        if (!cur) return
+        const updated = onWorkerCellError(cur, index, error)
+        if (appState.phase === 'candidate-grid') {
+          appState = updated
+        } else {
+          lastCandidateGridState = updated
+        }
+        const latest = getCurrentCs()
+        if (latest) renderCandidateGrid(latest.grid, latest.history, latest.cache)
       },
     })
   }
 
   // Grid cell clicks (delegated from candidateGridEl)
   candidateGridEl.addEventListener('click', (e) => {
-    if (appState.phase !== 'candidate-grid') return
+    const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+             : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+    if (!cs) return
     const cellEl = (e.target as Element).closest('[data-cell-index]') as HTMLElement | null
     if (!cellEl) return
     const idx = Number(cellEl.dataset.cellIndex)
-    if (idx === 4) return  // center — no-op
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    if (state.grid.cells[idx].status !== 'ready') return
+    if (idx === 4) return
+    if (cs.grid.cells[idx].status !== 'ready') return
 
     candidateAbortController?.abort()
     candidateAbortController = new AbortController()
-    appState = onCandidateCellSelected(state, idx, getDistance())
+    const newCs = onCandidateCellSelected(cs, idx, getDistance())
+    if (appState.phase === 'candidate-grid') {
+      appState = newCs
+    } else {
+      lastCandidateGridState = newCs
+    }
     renderPhase(appState)
     startCandidateBatch()
   })
 
   // Confirm Mosaic button
   confirmMosaicBtn.addEventListener('click', () => {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    if (state.grid.cells[4].status !== 'ready') return
-    candidateAbortController?.abort()
-    candidateAbortController = null
-    appState = onConfirmMosaic(state)
-    renderPhase(appState)
+    if (appState.phase === 'candidate-grid') {
+      const state = appState as CandidateGridState
+      if (state.grid.cells[4].status !== 'ready') return
+      candidateAbortController?.abort()
+      candidateAbortController = null
+      lastCandidateGridState = state
+      appState = onConfirmMosaic(state)
+      renderPhase(appState)
+    } else if (appState.phase === 'face-shaping' && lastCandidateGridState) {
+      const cs = lastCandidateGridState
+      if (cs.grid.cells[4].status !== 'ready') return
+      // Re-confirm: update the mosaic from the new center, keep existing mask
+      const fss = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+      appState = { ...fss, mosaic: cs.grid.cells[4].mosaic!, key: cs.grid.center }
+      renderPhase(appState)
+    }
   })
 
-  // Distance dropdown — rebuild grid around current center at new distance
-  candidateDistanceEl.addEventListener('change', () => {
-    if (appState.phase !== 'candidate-grid') return
-    const state = appState as Extract<typeof appState, { phase: 'candidate-grid' }>
-    const newGrid = buildNextGrid(state.grid.center, getDistance())
+  // Shared helper: rebuild grid around an arbitrary center + distance, hydrate from cache.
+  // Works from candidate-grid phase or (via lastCandidateGridState) from face-shaping.
+  function rebuildGrid(brightnessOffset: number, contrastOffset: number) {
+    const cs: CandidateGridState | null =
+      appState.phase === 'candidate-grid' ? appState as CandidateGridState
+      : appState.phase === 'face-shaping' ? lastCandidateGridState
+      : null
+    if (!cs) return
+    const newCenter = { brightnessOffset, contrastOffset }
+    const newGrid = buildNextGrid(newCenter, getDistance())
     for (let i = 0; i < 9; i++) {
       const ck = `${newGrid.cells[i].key.brightnessOffset}:${newGrid.cells[i].key.contrastOffset}`
-      const cached = state.cache.get(ck)
+      const cached = cs.cache.get(ck)
       if (cached) newGrid.cells[i] = { ...newGrid.cells[i], status: 'ready', mosaic: cached }
     }
-    appState = { ...state, grid: newGrid }
+    if (appState.phase === 'candidate-grid') {
+      appState = { ...cs, grid: newGrid }
+    } else {
+      lastCandidateGridState = { ...cs, grid: newGrid }
+    }
     candidateAbortController?.abort()
     candidateAbortController = new AbortController()
     renderPhase(appState)
     startCandidateBatch()
+  }
+
+  // Candidate brightness slider
+  candidateBrightnessEl.addEventListener('input', () => {
+    candidateBrightnessValue.textContent = candidateBrightnessEl.value
+  })
+  candidateBrightnessEl.addEventListener('change', () => {
+    rebuildGrid(Number(candidateBrightnessEl.value), Number(candidateContrastEl.value))
+  })
+
+  // Candidate contrast slider
+  candidateContrastEl.addEventListener('input', () => {
+    candidateContrastValue.textContent = candidateContrastEl.value
+  })
+  candidateContrastEl.addEventListener('change', () => {
+    rebuildGrid(Number(candidateBrightnessEl.value), Number(candidateContrastEl.value))
+  })
+
+  // Neighbors distance slider
+  candidateDistanceEl.addEventListener('input', () => {
+    candidateDistanceValue.textContent = getDistance().toString()
+  })
+  candidateDistanceEl.addEventListener('change', () => {
+    const cs = appState.phase === 'candidate-grid' ? appState as CandidateGridState
+             : appState.phase === 'face-shaping' ? lastCandidateGridState : null
+    if (!cs) return
+    rebuildGrid(cs.grid.center.brightnessOffset, cs.grid.center.contrastOffset)
+  })
+
+  // ─── Face shaping ─────────────────────────────────────────────────────────────
+
+  let cubbyImage: HTMLImageElement | null = null
+  loadCubbyImage().then(img => { cubbyImage = img }).catch(() => {
+    console.warn('[face-shaping] Cubby image failed to load')
+  })
+
+  function renderMaskEditor(
+    mosaic: import('../types/index.js').Mosaic,
+    mask: import('../types/index.js').FaceMask,
+  ): number {
+    maskEditorGridEl.innerHTML = ''
+    const panelW = maskEditorGridEl.offsetWidth || 300
+    const brickPx = Math.max(8, Math.floor(panelW / mosaic.width))
+    maskEditorGridEl.style.gridTemplateColumns = `repeat(${mosaic.width}, ${brickPx}px)`
+    maskEditorGridEl.style.gridTemplateRows    = `repeat(${mosaic.height}, ${brickPx}px)`
+    const paletteMap = new Map(palette.map(c => [c.id, c]))
+    for (let r = 0; r < mosaic.height; r++) {
+      for (let c = 0; c < mosaic.width; c++) {
+        const colorId = mosaic.grid[r][c]
+        const color = paletteMap.get(colorId)
+        const cell = document.createElement('div')
+        cell.dataset.row = String(r)
+        cell.dataset.col = String(c)
+        cell.style.width  = brickPx + 'px'
+        cell.style.height = brickPx + 'px'
+        if (color) {
+          const [rv, g, b] = color.rgb
+          cell.style.background = `rgb(${rv},${g},${b})`
+          cell.style.opacity = isCellVisible(mask, r, c) ? '1' : '0.5'
+        }
+        maskEditorGridEl.appendChild(cell)
+      }
+    }
+    return brickPx
+  }
+
+  function syncCubbyHeight(mosaic: import('../types/index.js').Mosaic, brickPx: number) {
+    const editorH = mosaic.height * brickPx
+    cubbyCanvasEl.style.height = editorH + 'px'
+    cubbyCanvasEl.style.width  = Math.round(editorH * CUBBY_W / CUBBY_H) + 'px'
+  }
+
+  function renderCubbyProjectionIfReady(state: Extract<typeof appState, { phase: 'face-shaping' }>) {
+    if (!cubbyImage) return
+    const ctx = cubbyCanvasEl.getContext('2d')
+    if (!ctx) return
+    renderCubbyProjection(ctx, cubbyImage, state.mosaic, state.mask, palette)
+  }
+
+  // ─── Mask editor drag state ───────────────────────────────────────────────────
+
+  let dragEdge: 'left' | 'right' | null = null
+  let dragMasking = false
+  const draggedRows = new Set<number>()
+
+  function applyDragToRow(mask: FaceMask, row: number, col: number): FaceMask {
+    const rows = mask.rows.slice() as FaceMask['rows']
+    const cur = rows[row]
+    if (dragEdge === 'left') {
+      rows[row] = { ...cur, leftCol: dragMasking ? col + 1 : col }
+    } else {
+      rows[row] = { ...cur, rightCol: dragMasking ? col - 1 : col }
+    }
+    return { ...mask, rows }
+  }
+
+  function applyMaskChange(row: number, col: number) {
+    if (appState.phase !== 'face-shaping') return
+    const state = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+    const newMask = applyDragToRow(state.mask, row, col)
+    appState = { ...state, mask: newMask }
+    const bp = renderMaskEditor(state.mosaic, newMask)
+    syncCubbyHeight(state.mosaic, bp)
+    renderCubbyProjectionIfReady(appState as Extract<typeof appState, { phase: 'face-shaping' }>)
+  }
+
+  maskEditorGridEl.addEventListener('pointerdown', (e) => {
+    if (appState.phase !== 'face-shaping') return
+    const cellEl = (e.target as Element).closest('[data-row]') as HTMLElement | null
+    if (!cellEl) return
+    e.preventDefault()
+    maskEditorGridEl.setPointerCapture(e.pointerId)
+
+    const row = Number(cellEl.dataset.row)
+    const col = Number(cellEl.dataset.col)
+    const state = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+    const W = state.mask.mosaicWidth
+
+    // Lock edge and direction from first touched cell
+    const distLeft = col + 1
+    const distRight = W - col
+    dragEdge = distLeft <= distRight ? 'left' : 'right'
+    const isMasked = dragEdge === 'left'
+      ? col < state.mask.rows[row].leftCol
+      : col > state.mask.rows[row].rightCol
+    dragMasking = !isMasked  // true = extending mask, false = retracting
+
+    draggedRows.clear()
+    draggedRows.add(row)
+    applyMaskChange(row, col)
+  })
+
+  maskEditorGridEl.addEventListener('pointermove', (e) => {
+    if (dragEdge === null || appState.phase !== 'face-shaping') return
+    const target = document.elementFromPoint(e.clientX, e.clientY)
+    const cellEl = target?.closest('[data-row]') as HTMLElement | null
+    if (!cellEl) return
+    const row = Number(cellEl.dataset.row)
+    const col = Number(cellEl.dataset.col)
+    if (draggedRows.has(row)) return
+    draggedRows.add(row)
+    applyMaskChange(row, col)
+  })
+
+  maskEditorGridEl.addEventListener('pointerup', () => {
+    dragEdge = null
+    draggedRows.clear()
+  })
+
+  maskEditorGridEl.addEventListener('pointercancel', () => {
+    dragEdge = null
+    draggedRows.clear()
   })
 
   // ─── Cleanup on unload ────────────────────────────────────────────────────────

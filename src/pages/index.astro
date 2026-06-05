@@ -132,6 +132,9 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   import type { FaceMask } from '../types/index.js'
   import { isCellVisible } from '../lib/face-shaping/mask.js'
   import { renderCubbyProjection, loadCubbyImage, CUBBY_W, CUBBY_H } from '../lib/face-shaping/cubby-render.js'
+  import { serialiseSession, saveSession, loadSession, clearSession } from '../lib/session/session-state.js'
+  import { downloadResultsZip } from '../lib/export/download-zip.js'
+  import { renderFaceMosaicPng } from '../lib/export/face-mosaic-png.js'
   import PALETTE_RAW from '../data/lego-palette.json'
 
   const palette: LegoColor[] = PALETTE_RAW as LegoColor[]
@@ -169,6 +172,8 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   type CandidateGridState = Extract<AppState, { phase: 'candidate-grid' }>
   // Preserved while in face-shaping so candidate tuning stays live
   let lastCandidateGridState: CandidateGridState | null = null
+  // Cached image blob for download ZIP (populated from session restore or crop confirm)
+  let sessionImageBlob: Blob | null = null
 
   // ─── Acquisition state (local to the panel) ───────────────────────────────────
 
@@ -240,6 +245,10 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   const faceShapingSectionEl  = document.getElementById('face-shaping-section')!
   const maskEditorGridEl      = document.getElementById('mask-editor-grid')!
   const cubbyCanvasEl         = document.getElementById('cubby-canvas') as HTMLCanvasElement
+  const downloadBtn           = document.getElementById('download-btn') as HTMLButtonElement
+  const addToGroupBtn         = document.getElementById('add-to-group-btn') as HTMLButtonElement
+  const groupNameInput        = document.getElementById('group-name-input') as HTMLInputElement
+  const groupErrorEl          = document.getElementById('group-error')!
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
   const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
@@ -392,6 +401,8 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
 
     const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
+    // Cache image blob for session persistence and ZIP download
+    cropCanvas.toBlob(blob => { if (blob) sessionImageBlob = blob }, 'image/jpeg', 0.92)
     // Abort any in-progress generation and clear stale candidate state
     candidateAbortController?.abort()
     candidateAbortController = null
@@ -557,6 +568,8 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     candidateAbortController?.abort()
     candidateAbortController = null
     lastCandidateGridState = null
+    sessionImageBlob = null
+    clearSession().catch(() => {})
     appState = { phase: 'idle' }
     hide(candidateSectionEl)
     hide(faceShapingSectionEl)
@@ -1000,6 +1013,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       lastCandidateGridState = state
       appState = onConfirmMosaic(state)
       renderPhase(appState)
+      persistSession()
     } else if (appState.phase === 'face-shaping' && lastCandidateGridState) {
       const cs = lastCandidateGridState
       if (cs.grid.cells[4].status !== 'ready') return
@@ -1007,6 +1021,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       const fss = appState as Extract<typeof appState, { phase: 'face-shaping' }>
       appState = { ...fss, mosaic: cs.grid.cells[4].mosaic!, key: cs.grid.center }
       renderPhase(appState)
+      persistSession()
     }
   })
 
@@ -1138,6 +1153,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     const bp = renderMaskEditor(state.mosaic, newMask)
     syncCubbyHeight(state.mosaic, bp)
     renderCubbyProjectionIfReady(appState as Extract<typeof appState, { phase: 'face-shaping' }>)
+    scheduleMaskSave()
   }
 
   maskEditorGridEl.addEventListener('pointerdown', (e) => {
@@ -1192,11 +1208,100 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
 
   window.addEventListener('beforeunload', () => stopStream())
 
+  // ─── Download / Gallery handlers ─────────────────────────────────────────────
+
+  downloadBtn.addEventListener('click', async () => {
+    if (appState.phase !== 'face-shaping') return
+    if (!sessionImageBlob) { console.warn('[download] No image blob cached'); return }
+    const state = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+    downloadBtn.disabled = true
+    downloadBtn.textContent = 'Preparing…'
+    try {
+      await downloadResultsZip(state.mosaic, state.mask, palette, sessionImageBlob)
+    } finally {
+      downloadBtn.disabled = false
+      downloadBtn.textContent = 'Download'
+    }
+  })
+
+  addToGroupBtn.addEventListener('click', async () => {
+    if (appState.phase !== 'face-shaping') return
+    const groupName = groupNameInput.value.trim()
+    if (!groupName) { groupNameInput.focus(); return }
+    groupErrorEl.textContent = ''
+    groupErrorEl.hidden = true
+    const state = appState as Extract<typeof appState, { phase: 'face-shaping' }>
+    addToGroupBtn.disabled = true
+    addToGroupBtn.textContent = 'Submitting…'
+    try {
+      const pngBlob = await renderFaceMosaicPng(state.mosaic, state.mask, palette)
+      const fd = new FormData()
+      fd.append('group_name', groupName)
+      fd.append('mosaic', pngBlob, 'face-mosaic.png')
+      const res = await fetch('/api/gallery/submit', { method: 'POST', body: fd })
+      const json = await res.json() as { success: boolean; redirectUrl?: string; error?: string }
+      if (json.success && json.redirectUrl) {
+        window.location.href = json.redirectUrl
+      } else {
+        groupErrorEl.textContent = json.error ?? 'Submission failed — please try again.'
+        groupErrorEl.hidden = false
+      }
+    } catch {
+      groupErrorEl.textContent = 'Network error — please check your connection and try again.'
+      groupErrorEl.hidden = false
+    } finally {
+      addToGroupBtn.disabled = false
+      addToGroupBtn.textContent = 'Add to Group'
+    }
+  })
+
+  // ─── Session persistence ──────────────────────────────────────────────────────
+
+  let maskSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+  function persistSession() {
+    const fs = appState.phase === 'face-shaping'
+      ? appState as Extract<typeof appState, { phase: 'face-shaping' }>
+      : null
+    if (!fs || !sessionImageBlob) return
+    const meta = serialiseSession(
+      fs.crop,
+      fs.key,
+      getDistance(),
+      fs.mosaic.grid,
+      fs.mosaic.width,
+      fs.mosaic.height,
+      fs.mask.rows,
+    )
+    saveSession({ metadata: meta, imageBlob: sessionImageBlob }).catch(() => {})
+  }
+
+  function scheduleMaskSave() {
+    if (maskSaveTimer) clearTimeout(maskSaveTimer)
+    maskSaveTimer = setTimeout(() => { maskSaveTimer = null; persistSession() }, 1000)
+  }
+
   // ─── Init ─────────────────────────────────────────────────────────────────────
 
   detectCameraSupport()
   setAcqMode('idle')
-  renderPhase(appState)
+
+  // T011: Attempt session restore before first render
+  loadSession().then(async session => {
+    if (!session) { renderPhase(appState); return }
+    const m = session.metadata
+    sessionImageBlob = session.imageBlob
+    const mask = { rows: m.maskRows, mosaicWidth: m.mosaicWidth }
+    const mosaic = { grid: m.mosaicGrid, width: m.mosaicWidth as 32, height: m.mosaicHeight, algorithmVersion: '1.0.0', pieceType: '1x1-plate' as const, mask: null }
+    const bitmap = await createImageBitmap(session.imageBlob)
+    const canvas = document.createElement('canvas')
+    canvas.width = m.cropParams.cropWidthPx; canvas.height = m.cropParams.cropHeightPx
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+    const imageData = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+    const crop = { ...m.cropParams, imageData }
+    appState = { phase: 'face-shaping', crop, mosaic, mask, key: m.candidateKey }
+    renderPhase(appState)
+  }).catch(() => renderPhase(appState))
 </script>
 
 <style is:global>

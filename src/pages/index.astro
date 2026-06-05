@@ -26,6 +26,10 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     <main>
       <!-- Acquisition + crop panel -->
       <section id="acquisition" aria-label="Choose and crop a photo">
+        <div>
+          <h2 class="step-heading">Step 1 — Capture your face</h2>
+          <p class="step-instruction">Choose an image then drag the crop to frame your head.</p>
+        </div>
         <div class="acq-layout">
 
           <!-- Left: choose + crop controls -->
@@ -1336,6 +1340,22 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     display: flex;
     flex-direction: column;
     gap: 2rem;
+  }
+
+  /* ── Step headings and instructions (Step 1/2/3) ── */
+  .step-heading {
+    margin: 0 0 0.2rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #222;
+    text-align: left;
+  }
+
+  .step-instruction {
+    margin: 0 0 0.75rem;
+    font-size: 0.85rem;
+    color: #666;
+    text-align: left;
   }
 
   /* ── Acquisition panel ── */

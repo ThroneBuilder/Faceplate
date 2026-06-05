@@ -5,7 +5,10 @@ const galleries = galleryGroups.groups
 ---
 <section id="face-shaping-section" hidden aria-label="Face shaping">
 
-  <h2 class="face-shaping-heading">Shape your face</h2>
+  <div>
+    <h2 class="step-heading">Step 3 — Shape your face</h2>
+    <p class="step-instruction">Click the edge of your face to ignore farther out.</p>
+  </div>
 
   <div class="face-shaping-layout">
 
@@ -55,15 +58,7 @@ const galleries = galleryGroups.groups
     gap: 1rem;
   }
 
-  .face-shaping-heading {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #222;
-    text-align: center;
-  }
-
-  /* ── Two-column layout: sidebar left, panels right (mirrors acq-layout) ── */
+/* ── Two-column layout: sidebar left, panels right (mirrors acq-layout) ── */
   .face-shaping-layout {
     display: flex;
     gap: 1.5rem;

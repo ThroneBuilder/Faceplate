@@ -42,8 +42,8 @@ export function renderCubbyProjection(
   // 1. Draw Cubby.JPEG background
   ctx.drawImage(cubbyImage, 0, 0, CUBBY_W, CUBBY_H)
 
-  // 2. Scale: 57% of the base 32/78 proportion → 32-brick face ≈ 23% of image height
-  const brickPx = Math.round(CUBBY_H / IMAGE_BRICKS_H * 0.57)  // = 11
+  // 2. Scale: 71.25% of the base 32/78 proportion → 32-brick face ≈ 29% of image height
+  const brickPx = Math.round(CUBBY_H / IMAGE_BRICKS_H * 0.7125)  // = 13
   const mosW    = W * brickPx
   const mosH    = H * brickPx
   const centerX = Math.round(CUBBY_W / 2)

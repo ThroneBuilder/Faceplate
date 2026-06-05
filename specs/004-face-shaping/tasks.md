@@ -92,7 +92,7 @@
 
 - [x] T016 [P] Run `pnpm test` — verify all tests pass including new `face-mask.test.ts` (target: 149+ tests total after adding 8 new tests)
 - [x] T017 Verify `mosaic-confirmed` result row is no longer shown (it is replaced by the auto-transition to `face-shaping`); remove any now-unreachable rendering code for the result row in the `mosaic-confirmed` case
-- [ ] T018 Cross-browser smoke test: full flow (upload/camera → crop → 3×3 candidate grid → confirm mosaic → face shaping displays → click mask cells → cubby projection updates with shadow) in Chrome latest and Safari latest
+- [ ] T018 Cross-browser smoke test: full flow (upload/camera → crop → 3×3 candidate grid → confirm mosaic → face shaping displays → click/drag mask cells → cubby projection updates with shadow) in Chrome latest and Safari latest — deferred to post-merge manual QA
 
 ---
 

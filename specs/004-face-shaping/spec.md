@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-01
 
-**Status**: Draft
+**Status**: Shipped (2026-06-05)
 
 **Input**: User description: "Implement the horizontal cropping now, which I'll call face shaping. After 'confirm mosaic' but before export, present the user two images side-by side: an interactive mosaic for trimming the face edges and a projection of the masked mosaic onto an image of a Hall of Faces cubby to '/public/images/Cubby.JPEG'. Text above should say 'Shape your face'. Clicking on cells in the mosaic will mask all cells to the closest edge horizontally. If that cell was already masked, it becomes unmasked and vice-versa. The mask should be primed with a guess at the face boundary. Changes to the mask should be reflected in the cubby projection immediately. The Cubby.jpg image has a white 16x16 plate over which the mosaic should be placed, centered where that plate is centered. Add a shadow effect matching the face edge to the back bricks behind it. For now, remove any UI after this step."
 
@@ -81,14 +81,14 @@ The right panel composites the masked mosaic onto the Hall of Faces cubby photog
 - **FR-001**: The face shaping step MUST appear immediately after the user confirms the mosaic and MUST display the heading "Shape your face."
 - **FR-002**: The face shaping view MUST present two panels side by side: an interactive masked mosaic on the left and a cubby projection preview on the right.
 - **FR-003**: The interactive mosaic MUST be displayed at brick-level resolution with each cell individually clickable. Masked cells MUST be rendered at approximately 50% opacity (their brick colour dimmed) so they remain visible but clearly distinguished from unmasked cells.
-- **FR-004**: The mask MUST be initialized automatically with a best-guess face boundary derived from the head-detection data captured during the crop step, masking columns outside the detected face region on each row.
-- **FR-005**: Clicking an unmasked cell MUST mask all cells in that row from the clicked cell to the nearest horizontal edge (left or right, whichever requires fewer columns).
+- **FR-004**: The mask MUST be initialized automatically with a best-guess face boundary. The algorithm uses a head-shaped piecewise profile: near-full width across the crown and mid-face (t=0–0.55 of mosaic height), tapering to ~45% width at the chin (t=1.0). This approximates a typical portrait head — wide and square at the top, narrowing toward the jaw — without requiring head-detection bounds to be persisted through the state machine.
+- **FR-005**: Clicking an unmasked cell MUST mask all cells in that row from the clicked cell to the nearest horizontal edge (left or right, whichever requires fewer columns). Clicking and dragging across multiple rows MUST apply the same mask operation to each new row entered during the drag, using the edge and direction (mask or unmask) established on the first touched cell.
 - **FR-006**: Clicking a cell that is already masked MUST unmask all cells in that row from the clicked cell to the nearest horizontal edge — the same range that would have been masked by clicking an unmasked cell at that position. The operation is a pure toggle of that edge segment.
 - **FR-007**: Mask changes MUST be reflected in the cubby projection immediately, without any additional user action.
 - **FR-008**: The cubby projection MUST composite the masked mosaic onto `Cubby.JPEG`, centered over the white 16×16 plate area in the photograph.
 - **FR-009**: Cells that are masked MUST appear absent in the cubby projection, showing the cubby background through their positions.
 - **FR-010**: A shadow effect MUST be rendered on the cubby surface at the boundary between the face-shaped mosaic and the masked (absent) area, reflecting the shape of the face mask.
-- **FR-011**: No button, action, or navigation element beyond the face shaping panel itself MUST be present. The screen is the terminal state of this phase — there is no "Done," "Export," or "Continue" control. Downstream UI is out of scope.
+- **FR-011**: The face shaping panel includes a sidebar with a "Download" button and an "Add to Group" button with a group-name text field. Both MUST be visually present but disabled (pending export/share features in a future phase). No functional export or navigation action is implemented in this phase.
 
 ### Key Entities
 
@@ -117,13 +117,19 @@ The right panel composites the masked mosaic onto the Hall of Faces cubby photog
 - Q: What should masked cells look like in the interactive mosaic panel? → A: Greyed/dimmed — brick colour shown at ~50% opacity, so masked cells remain visible but clearly distinguished.
 - Q: What end-of-step action should the face shaping screen have? → A: None — no button at all. The screen is a purely informational terminal state; export/continue UI is deferred to a future phase.
 
+### Session 2026-06-02 (post-implementation revisions)
+
+- Q: Initial mask too oval — what shape better approximates a typical head? → A: Head-shaped piecewise profile: wide and square-ish across crown and mid-face (t=0–0.55), tapering linearly to ~45% width at chin. Replaces the pure ellipse from the original design.
+- Q: Should dragging across the mask editor apply the mask to each row? → A: Yes — click-and-drag locks the edge and direction on the first touched cell, then applies the same operation to each new row entered during the drag.
+- Q: Cubby projection scale approach? → A: Scale derived from measured image geometry: the full Cubby.JPEG is 78 brick-widths tall; `brickPx = round(CUBBY_H / 78 × 0.57)` = 11 px/brick. Face centred 1 brick-width below image vertical centre.
+- Q: Should prior UI stages stay live after later stages complete? → A: Yes — cumulative UI. Crop handles and Confirm Crop remain interactive after confirming. Candidate section remains interactive after confirming mosaic; re-pressing Confirm Mosaic updates face shaping with the new center and preserves the manually adjusted mask.
+- Q: What placeholder actions should appear in the face shaping sidebar? → A: "Download" (blue, disabled) and "Add to Group" (green, disabled) with a group-name text field below it. Both pending the export/share feature phase.
+
 ## Assumptions
 
-- The head-detection bounds from the crop step (Phase 1C) are accessible in the confirmed mosaic state and can seed the initial mask. The initial mask converts the face oval/rectangle from pixel coordinates to brick columns per row.
-- The white 16×16 plate in `Cubby.JPEG` is at a fixed, known pixel position and size. These coordinates will be determined empirically by measuring the photograph and hardcoded as constants in the implementation.
-- The mosaic is scaled (up or down) to fit within the plate area while maintaining its aspect ratio. Any remaining plate area not covered by the mosaic shows the cubby background.
-- The shadow effect is a directional soft shadow applied only to the exposed cubby surface at the face-mask edges (left and right vertical boundaries), not to the top or bottom.
+- The head-shaped initial mask does not require head-detection bounds to be persisted through the state machine; the piecewise formula uses only mosaic width and height.
+- The white 16×16 plate in `Cubby.JPEG` is at a known position used as a calibration reference. Mosaic placement is computed from full-image brick-count measurements, not plate pixel coordinates.
 - Masked cells are represented as fully transparent in the mosaic overlay; no partial masking or feathering is applied to individual cells.
-- The mask operates column-by-column within each row (per-row left and right trim). There is no per-cell toggle — clicks always set or clear the boundary for an entire edge segment of a row.
-- "For now, remove any UI after this step" means the face shaping view is strictly terminal — no button of any kind (not even a placeholder "Done") is shown. The user simply views the result. Export and continuation are deferred to a future phase.
-- The mosaic confirmed from Phase 2A/2B carries all data needed for this step: the brick grid, brick height, width, and the original crop's head bounds.
+- The mask operates column-by-column within each row (per-row left and right trim). Clicks and drags always set or clear the boundary for an entire edge segment of a row.
+- Re-confirming the mosaic while in face shaping keeps the user's manually adjusted mask intact and only updates the mosaic from the current candidate grid center.
+- Export and share actions (Download, Add to Group) are out of scope for this phase; their controls appear disabled as placeholders for the next feature pass.

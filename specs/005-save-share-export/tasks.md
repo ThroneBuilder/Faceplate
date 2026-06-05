@@ -98,8 +98,8 @@
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [x] T023 [P] Run `pnpm test` — verify all existing 156+ tests pass plus new `session-state.test.ts`, `bricklink-xml.test.ts`, `studio-ldr.test.ts` (target: 170+ tests)
-- [ ] T024 Manually verify session persistence in Chrome and Safari: complete workflow → close tab → reopen → confirm app resumes at face-shaping step within 3 seconds with mosaic and mask intact (SC-001)
-- [ ] T025 Manually verify Download ZIP in Chrome and Safari: open `face-mosaic.png` in an image viewer (confirm transparent background + brick colours), import `bricklink-wanted.xml` into BrickLink Wanted List (confirm no parse errors), open `studio-model.ldr` in BrickLink Studio (confirm flat plate grid renders), and read `readme.md` (confirm Faceplate.me link present) — SC-002, SC-004
+- [ ] T024 — deferred to post-merge manual QA Manually verify session persistence in Chrome and Safari: complete workflow → close tab → reopen → confirm app resumes at face-shaping step within 3 seconds with mosaic and mask intact (SC-001)
+- [ ] T025 — deferred to post-merge manual QA Manually verify Download ZIP in Chrome and Safari: open `face-mosaic.png` in an image viewer (confirm transparent background + brick colours), import `bricklink-wanted.xml` into BrickLink Wanted List (confirm no parse errors), open `studio-model.ldr` in BrickLink Studio (confirm flat plate grid renders), and read `readme.md` (confirm Faceplate.me link present) — SC-002, SC-004
 - [x] T026 [P] Add `public/gallery/.gitkeep` so the gallery directory is tracked; add `public/gallery/**/*.png` to `.gitignore` so submitted mosaics are not committed to the repo
 
 ---

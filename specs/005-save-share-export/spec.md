@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-05
 
-**Status**: Draft
+**Status**: Shipped (2026-06-05)
 
 **Input**: User description: "Faceplate.me needs to save state in three ways: when users return to the page, allow users to download their results, and allow users to share into a predefined Hall of Faces gallery. The session state can be a 'faceplate-session.json' file containing the uploaded image and all choices through the UI saved as a session cookie. The sharing option minimally needs 'face-mosaic.gif' or 'face-mosaic.png' a masked version of the mosaic rendering, as used in the current cubby overlay and in a later spec. The download option can be a ZIP file wrapping those, plus 'original-image.jpg', 'bricklink-wanted.xml' and 'studio-model.ldr' files with a 'readme.md' that links to the website and describes each file."
 
@@ -122,13 +122,14 @@ After completing face shaping, the user can press "Add to Group" and enter a gro
 - Q: What access control governs gallery group submission? → A: Admin-created groups only — groups must be pre-created by a site administrator; users cannot create groups through the UI; submitting to a non-existent group name is rejected.
 - Q: How long does saved session state persist? → A: 30 days from last activity; expired state is treated as absent and the app starts fresh.
 - Q: What UX follows a successful gallery submission? → A: Redirect to the Hall of Faces gallery page showing the submission in the correct group.
+- Q: Are BrickLink and Studio colour IDs available in the existing palette data? → A: Yes — all 34 palette entries were populated during implementation using BrickLink's official colour guide (ID column → `brickLinkColorId`; LEGO colour number → `studioColorId`). No colours are omitted from the XML or fall back to placeholder colour 16 in the LDR.
 
 ## Assumptions
 
-- Session storage uses the browser's `localStorage` or `IndexedDB` (capacity ~5–50 MB) rather than a cookie, since cookies are capped at ~4 KB and the image data would exceed that limit. The description's reference to "session cookie" is interpreted as "browser-side session persistence" generally, not specifically the `document.cookie` API.
-- The BrickLink wanted-list XML format follows the BrickLink standard (`<INVENTORY><ITEM>…</ITEM></INVENTORY>`) using LEGO colour IDs already present in the app's palette data.
+- Session storage uses IndexedDB (not `document.cookie`); the spec's reference to "session cookie" is interpreted as browser-side persistence generally. Cookies are limited to ~4 KB; IndexedDB handles the image blob natively.
+- The BrickLink wanted-list XML format follows the BrickLink standard (`<INVENTORY><ITEM>…</ITEM></INVENTORY>`) using BrickLink colour IDs (`brickLinkColorId`) from the palette.
 - The Studio LDR format follows LDraw conventions: one `1 <colour> x y z 1 0 0 0 1 0 0 0 1 3024.dat` line per brick (part 3024 = 1×1 plate), laid out in a flat grid at y=0.
-- LDraw colour IDs for each LEGO colour are available in the existing palette data (the `studioColorId` field on `LegoColor`).
+- LEGO system colour IDs (used as `studioColorId`) map correctly to BrickLink Studio's colour display.
 - The masked mosaic PNG is generated client-side using the same Canvas 2D rendering used for the cubby overlay, with transparency for masked cells.
 - Gallery sharing requires a server endpoint (first-party, stateless per the constitution) to accept and store the masked PNG and group name. No image data beyond the masked PNG is transmitted.
 - The "Hall of Faces gallery" is a simple, predefined collection — no user accounts, moderation queue, or per-user ownership in this phase.

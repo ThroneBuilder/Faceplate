@@ -4,4 +4,7 @@ import node from '@astrojs/node'
 export default defineConfig({
   output: 'hybrid',
   adapter: node({ mode: 'standalone' }),
+  server: {
+    host: '0.0.0.0',  // required for Render — binds on all interfaces
+  },
 })

@@ -28,3 +28,4 @@ Thumbs.db
 npm-debug.log*
 pnpm-debug.log*
 public/gallery/**/*.png
+gallery-data/

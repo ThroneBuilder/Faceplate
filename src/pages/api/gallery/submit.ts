@@ -1,13 +1,12 @@
 import type { APIRoute } from 'astro'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
+import { findGallery, GALLERY_DATA_DIR } from '../../../lib/gallery/config.js'
+import { appendSubmission } from '../../../lib/gallery/submissions.js'
 
 export const prerender = false
-
-interface GalleryGroup { slug: string; displayName: string }
-interface GalleryGroupsConfig { groups: GalleryGroup[] }
 
 export const POST: APIRoute = async ({ request }) => {
   const headers = { 'Content-Type': 'application/json' }
@@ -34,30 +33,34 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ success: false, error: 'Image too large (max 2 MB)' }, 413)
   }
 
-  // Validate group name against admin-created groups
-  let config: GalleryGroupsConfig
-  try {
-    const configPath = join(process.cwd(), 'gallery-groups.json')
-    config = JSON.parse(await readFile(configPath, 'utf8'))
-  } catch {
-    return json({ success: false, error: 'Server error — please try again' }, 500)
-  }
-
-  const group = config.groups.find(g => g.slug === groupName)
+  const group = findGallery(groupName)
   if (!group) {
     return json({ success: false, error: 'Group not found — check the group name and try again' }, 404)
   }
 
-  // Write PNG to public/gallery/{slug}/{uuid}.png
+  const uuid = randomUUID()
+  const filename = `${uuid}.png`
+
   try {
-    const dir = join(process.cwd(), 'public', 'gallery', group.slug)
+    const dir = join(GALLERY_DATA_DIR, group.slug)
     await mkdir(dir, { recursive: true })
-    const filename = `${randomUUID()}.png`
     const buffer = Buffer.from(await mosaicFile.arrayBuffer())
     await writeFile(join(dir, filename), buffer)
   } catch {
     return json({ success: false, error: 'Server error — please try again' }, 500)
   }
 
-  return json({ success: true, redirectUrl: `/gallery/${group.slug}` })
+  try {
+    appendSubmission(GALLERY_DATA_DIR, {
+      uuid,
+      slug: group.slug,
+      timestamp: Date.now(),
+      filename,
+    })
+  } catch {
+    // Manifest write failure is non-fatal for the current request
+    console.error('[gallery] Failed to append submission to manifest')
+  }
+
+  return json({ success: true, redirectUrl: `/${group.slug}` })
 }

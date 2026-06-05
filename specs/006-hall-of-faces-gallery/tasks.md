@@ -89,8 +89,8 @@
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [x] T017 [P] Run `pnpm test` — verify all 171+ existing tests pass plus new `gallery-submissions.test.ts` (target: 176+ tests)
-- [ ] T018 Render debug overlay verification — temporarily add red `strokeRect` overlays at all 6 cubby positions using calibrated values; visually confirm alignment in browser; remove overlay code; commit final `CUBBY_SLOTS` values
-- [ ] T019 Manual smoke test: (1) complete face-shaping on faceplate.me → click "Add to Group" with `hall-of-faces` → verify redirect to `/hall-of-faces` with mosaic in slot 0; (2) submit 7 mosaics → verify 2 Hall.JPEG composites appear; (3) click gallery's "Add your face" link → verify `groupNameInput` pre-filled; (4) run `pnpm build` → verify submissions survive; (5) confirm page loads within 3 s on broadband (SC-001)
+- [ ] T018 — deferred to post-deploy manual QA Render debug overlay verification — temporarily add red `strokeRect` overlays at all 6 cubby positions using calibrated values; visually confirm alignment in browser; remove overlay code; commit final `CUBBY_SLOTS` values
+- [ ] T019 — deferred to post-deploy manual QA Manual smoke test: (1) complete face-shaping on faceplate.me → click "Add to Group" with `hall-of-faces` → verify redirect to `/hall-of-faces` with mosaic in slot 0; (2) submit 7 mosaics → verify 2 Hall.JPEG composites appear; (3) click gallery's "Add your face" link → verify `groupNameInput` pre-filled; (4) run `pnpm build` → verify submissions survive; (5) confirm page loads within 3 s on broadband (SC-001)
 
 ---
 

@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-05
 
-**Status**: Draft
+**Status**: Shipped (2026-06-05)
 
 **Input**: User description: "Let's create three galleries: a public one called 'Hall of Faces', a private one called 'Hall of Nobles', and an event-specific one called 'BrickCon 2026'. Each gallery is reachable as a direct subdirectory (e.g., faceplate.me/hall-of-faces). The gallery header matches the home page with the gallery name as title, a provided description as subtitle, and 'Add your face to this gallery' as the third link back to faceplate.me with a Hall parameter. Below the header: a series of Hall.JPEG copies with 0–6 submitted mosaics composited into cubbies (2 rows × 3 columns). Gallery submissions must persist across site rebuilds."
 
@@ -112,6 +112,9 @@ A site administrator rebuilds and redeploys the Faceplate site. All gallery subm
 
 - Q: Are gallery pages server-rendered on each request or statically generated? → A: Server-rendered on every request — the gallery always reflects the latest submissions; rebuilds do not affect gallery content.
 - Q: Is Hall.JPEG mosaic compositing done server-side or client-side? → A: Client-side Canvas — the browser receives submission PNG URLs, loads Hall.JPEG and each PNG, and composites them using Canvas 2D (same approach as the Phase 004/005 single-cubby overlay).
+- Q: What should the gallery submission UI look like? → A: "Add to Group" button renamed "Add to Gallery"; group name text field replaced with a dropdown populated from gallery-groups.json at build time, defaulting to hall-of-faces (or the ?hall= URL parameter if present).
+- Q: What are the final calibrated cubby positions and scale? → A: X at 22/50/78% of HALL_W, Y at 30/70% of HALL_H; HALL_MOSAIC_SCALE = 0.18225 (brickPx ≈ 7); mosaics shorter than 32 bricks render proportionally shorter (width anchored at 32 × brickPx, height derived from PNG aspect ratio).
+- Q: Persistent storage requires Render Disk — does that need explicit configuration? → A: Yes — a Render Disk mounted at /data with env var GALLERY_DATA_DIR=/data/gallery is required; the existing static-site deployment must be replaced with a Web Service deployment to support disks.
 
 ## Assumptions
 

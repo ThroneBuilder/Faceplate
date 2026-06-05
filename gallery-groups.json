@@ -1,6 +1,22 @@
 {
   "groups": [
-    { "slug": "test-group", "displayName": "Test Group" }
+    {
+      "slug": "hall-of-faces",
+      "displayName": "Hall of Faces",
+      "description": "A public gallery of LEGO mosaic portraits from the Faceplate community.",
+      "visibility": "public"
+    },
+    {
+      "slug": "hall-of-nobles",
+      "displayName": "Hall of Nobles",
+      "description": "A private collection of LEGO mosaic portraits.",
+      "visibility": "unlisted"
+    },
+    {
+      "slug": "brickcon-2026",
+      "displayName": "BrickCon 2026",
+      "description": "Mosaic portraits created by BrickCon 2026 attendees.",
+      "visibility": "public"
+    }
   ]
 }
-

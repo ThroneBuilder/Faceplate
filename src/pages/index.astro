@@ -1286,6 +1286,10 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   detectCameraSupport()
   setAcqMode('idle')
 
+  // T010: Pre-fill "Add to Group" field from ?hall= URL parameter (FR-010)
+  const hallParam = new URLSearchParams(window.location.search).get('hall')
+  if (hallParam) groupNameInput.value = hallParam
+
   // T011: Attempt session restore before first render
   loadSession().then(async session => {
     if (!session) { renderPhase(appState); return }

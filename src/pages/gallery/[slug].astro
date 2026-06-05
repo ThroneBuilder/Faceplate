@@ -1,31 +1,6 @@
 ---
-// Gallery page — placeholder stub.
-// Full gallery display (listing submitted mosaics) is a future spec.
-// This page's purpose in Phase 005 is to provide a valid redirect target URL
-// for successful "Add to Group" submissions.
-
+// Phase 005 compatibility redirect: /gallery/{slug} → /{slug} (301 permanent)
 export const prerender = false
-
 const { slug } = Astro.params
+return Astro.redirect(`/${slug}`, 301)
 ---
-
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hall of Faces — {slug} — Faceplate</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <style>
-      body { font-family: system-ui, sans-serif; max-width: 700px; margin: 4rem auto; padding: 0 1rem; color: #222; }
-      h1 { font-size: 1.6rem; }
-      p  { color: #555; }
-      a  { color: #2563eb; }
-    </style>
-  </head>
-  <body>
-    <h1>Hall of Faces — {slug}</h1>
-    <p>Your mosaic has been submitted to this group. Gallery display is coming soon.</p>
-    <p><a href="/">← Back to Faceplate</a></p>
-  </body>
-</html>

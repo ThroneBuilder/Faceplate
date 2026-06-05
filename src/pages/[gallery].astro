@@ -1,0 +1,78 @@
+---
+export const prerender = false
+
+import { findGallery, GALLERY_DATA_DIR } from '../lib/gallery/config.js'
+import { readSubmissions } from '../lib/gallery/submissions.js'
+import { CUBBY_SLOTS, HALL_W, HALL_H, HALL_MOSAIC_SCALE } from '../lib/gallery/cubby-slots.js'
+
+const slug = Astro.params.gallery as string
+const gallery = findGallery(slug)
+
+if (!gallery) {
+  return new Response('Gallery not found', { status: 404 })
+}
+
+const submissions = readSubmissions(GALLERY_DATA_DIR, slug)
+const BATCH_SIZE = 6
+
+// Build batches of 6; always at least one batch (for empty gallery)
+const batches: (string | null)[][] = []
+const count = Math.max(submissions.length, 1)
+for (let i = 0; i < count; i += BATCH_SIZE) {
+  const batch: (string | null)[] = []
+  for (let j = 0; j < BATCH_SIZE; j++) {
+    const sub = submissions[i + j]
+    batch.push(sub ? `/api/gallery/image/${slug}/${sub.uuid}.png` : null)
+  }
+  batches.push(batch)
+}
+
+const compositeConstants = JSON.stringify({ CUBBY_SLOTS, HALL_W, HALL_H, HALL_MOSAIC_SCALE })
+const batchesJson = JSON.stringify(batches)
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{gallery.displayName} — Faceplate</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, sans-serif; background: #f8f8f8; color: #222; margin: 0; }
+      header { background: #1a1a2e; color: white; padding: 1.25rem 2rem; }
+      .header-inner { max-width: 900px; margin: 0 auto; }
+      header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
+      .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
+      .more-info { display: inline-block; margin-top: 0.5rem; font-size: 0.8rem; color: #e87722; text-decoration: none; }
+      .more-info:hover { text-decoration: underline; }
+      main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; display: flex; flex-direction: column; gap: 2rem; }
+      .hall-composite { width: 100%; }
+      .hall-canvas { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid #ddd; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <h1>{gallery.displayName}</h1>
+        <p class="tagline">{gallery.description}</p>
+        <a class="more-info" href={`https://faceplate.me/?hall=${slug}`}>Add your face to this gallery ↗</a>
+      </div>
+    </header>
+
+    <main>
+      {batches.map((_, i) => (
+        <div class="hall-composite">
+          <canvas class="hall-canvas" data-batch-index={i} width={HALL_W} height={HALL_H}></canvas>
+        </div>
+      ))}
+    </main>
+
+    <script is:inline set:html={`
+      window.GALLERY_BATCHES = ${batchesJson};
+      window.HALL_COMPOSITING_CONSTANTS = ${compositeConstants};
+    `}></script>
+    <script src="/scripts/gallery-composite.js" defer></script>
+  </body>
+</html>

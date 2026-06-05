@@ -247,7 +247,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   const cubbyCanvasEl         = document.getElementById('cubby-canvas') as HTMLCanvasElement
   const downloadBtn           = document.getElementById('download-btn') as HTMLButtonElement
   const addToGroupBtn         = document.getElementById('add-to-group-btn') as HTMLButtonElement
-  const groupNameInput        = document.getElementById('group-name-input') as HTMLInputElement
+  const groupNameInput        = document.getElementById('group-name-input') as HTMLSelectElement
   const groupErrorEl          = document.getElementById('group-error')!
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
@@ -500,13 +500,13 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     // Crop frame border
     hctFrame.style.cssText = `left:${lx}px;top:${hctTopPx}px;width:${cropW}px;height:${cropH}px`
 
-    // Horizontal handles (top/bottom crop lines)
-    hctHandleTop.style.cssText    = `left:0;right:0;top:${hctTopPx - 12}px;height:24px`
-    hctHandleBottom.style.cssText = `left:0;right:0;top:${hctBotPx - 12}px;height:24px`
+    // Horizontal handles — clamped so the full 24 px element stays inside the container
+    hctHandleTop.style.cssText    = `left:0;right:0;top:${Math.max(hctTopPx - 12, 0)}px;height:24px`
+    hctHandleBottom.style.cssText = `left:0;right:0;top:${Math.min(hctBotPx - 12, H - 24)}px;height:24px`
 
-    // Vertical handles (left/right crop lines), spanning the crop height
-    hctHandleLeft.style.cssText  = `left:${lx - 12}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
-    hctHandleRight.style.cssText = `left:${rx - 12}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
+    // Vertical handles — clamped so the full 24 px element stays inside the container
+    hctHandleLeft.style.cssText  = `left:${Math.max(lx - 12, 0)}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
+    hctHandleRight.style.cssText = `left:${Math.min(rx - 12, W - 24)}px;top:${hctTopPx}px;width:24px;height:${cropH}px`
   }
 
   // Drag interaction
@@ -1286,9 +1286,12 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   detectCameraSupport()
   setAcqMode('idle')
 
-  // T010: Pre-fill "Add to Group" field from ?hall= URL parameter (FR-010)
+  // T010: Select gallery from ?hall= URL parameter, default to hall-of-faces (FR-010)
   const hallParam = new URLSearchParams(window.location.search).get('hall')
-  if (hallParam) groupNameInput.value = hallParam
+  const hallTarget = hallParam ?? 'hall-of-faces'
+  // Only set if the option exists in the dropdown
+  const matchingOption = Array.from(groupNameInput.options).find(o => o.value === hallTarget)
+  if (matchingOption) groupNameInput.value = hallTarget
 
   // T011: Attempt session restore before first render
   loadSession().then(async session => {

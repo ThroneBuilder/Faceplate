@@ -12,7 +12,7 @@ import MosaicMaskEditor from './MosaicMaskEditor.astro'
 
       <p class="sidebar-label">Export</p>
 
-      <button class="sidebar-btn sidebar-btn--download" type="button" disabled>
+      <button id="download-btn" class="sidebar-btn sidebar-btn--download" type="button">
         Download
       </button>
 
@@ -20,16 +20,17 @@ import MosaicMaskEditor from './MosaicMaskEditor.astro'
 
       <p class="sidebar-label">Share</p>
 
-      <button class="sidebar-btn sidebar-btn--group" type="button" disabled>
+      <button id="add-to-group-btn" class="sidebar-btn sidebar-btn--group" type="button">
         Add to Group
       </button>
       <input
+        id="group-name-input"
         type="text"
         class="group-name-input"
         placeholder="Group name"
-        disabled
         aria-label="Group name"
       />
+      <p id="group-error" class="group-error" hidden></p>
 
     </div>
 
@@ -119,15 +120,26 @@ import MosaicMaskEditor from './MosaicMaskEditor.astro'
     border-radius: 8px;
     font-size: 0.95rem;
     font-weight: 600;
-    cursor: not-allowed;
+    cursor: pointer;
     text-align: center;
-    opacity: 0.4;
     color: white;
     transition: background 0.15s, opacity 0.15s;
   }
 
-  .sidebar-btn--download { background: #2563eb; }
-  .sidebar-btn--group    { background: #2c6e49; }
+  .sidebar-btn--download { background: #2563eb; cursor: pointer; }
+  .sidebar-btn--download:hover { background: #1d4ed8; }
+  .sidebar-btn--group    { background: #2c6e49; cursor: pointer; }
+  .sidebar-btn--group:hover { background: #1f5235; }
+
+  .group-error {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #c0392b;
+    background: #fdf0ee;
+    border: 1px solid #f5c6c0;
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+  }
 
   .sidebar-btn:not(:disabled) {
     opacity: 1;

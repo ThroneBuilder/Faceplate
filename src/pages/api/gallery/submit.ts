@@ -46,6 +46,11 @@ export const POST: APIRoute = async ({ request }) => {
     await mkdir(dir, { recursive: true })
     const buffer = Buffer.from(await mosaicFile.arrayBuffer())
     await writeFile(join(dir, filename), buffer)
+    const csvFile = formData.get('mosaic_csv') as File | null
+    if (csvFile) {
+      const csvBuffer = Buffer.from(await csvFile.arrayBuffer())
+      await writeFile(join(dir, `${uuid}.csv`), csvBuffer)
+    }
   } catch {
     return json({ success: false, error: 'Server error — please try again' }, 500)
   }

@@ -28,7 +28,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       <section id="acquisition" aria-label="Choose and crop a photo">
         <div>
           <h2 class="step-heading">Step 1 — Capture your face</h2>
-          <p class="step-instruction">Choose an image then drag the crop to frame your head.</p>
+          <p class="step-instruction">Choose an image then drag the crop to frame your head. For authenticity, your face should be straight-on with eyes closed.</p>
         </div>
         <div class="acq-layout">
 
@@ -414,6 +414,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     appState = onCropConfirmed(appState, crop, getDistance())
     renderPhase(appState)
     startCandidateBatch()
+    candidateSectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
 
   // ─── Crop overlay (embedded in acq-box) ──────────────────────────────────────
@@ -1018,6 +1019,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       appState = onConfirmMosaic(state)
       renderPhase(appState)
       persistSession()
+      faceShapingSectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
     } else if (appState.phase === 'face-shaping' && lastCandidateGridState) {
       const cs = lastCandidateGridState
       if (cs.grid.cells[4].status !== 'ready') return
@@ -1026,6 +1028,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       appState = { ...fss, mosaic: cs.grid.cells[4].mosaic!, key: cs.grid.center }
       renderPhase(appState)
       persistSession()
+      faceShapingSectionEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   })
 
@@ -1214,6 +1217,16 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
 
   // ─── Download / Gallery handlers ─────────────────────────────────────────────
 
+  function mosaicToCsv(mosaic: Mosaic, mask: FaceMask): string {
+    const paletteMap = new Map(palette.map(c => [c.id, c]))
+    return mosaic.grid.map((row, r) =>
+      row.map((colorId, c) => {
+        if (!isCellVisible(mask, r, c)) return ''
+        return paletteMap.get(colorId)?.name ?? ''
+      }).join(',')
+    ).join('\n')
+  }
+
   downloadBtn.addEventListener('click', async () => {
     if (appState.phase !== 'face-shaping') return
     if (!sessionImageBlob) { console.warn('[download] No image blob cached'); return }
@@ -1239,9 +1252,11 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     addToGroupBtn.textContent = 'Submitting…'
     try {
       const pngBlob = await renderFaceMosaicPng(state.mosaic, state.mask, palette)
+      const csvBlob = new Blob([mosaicToCsv(state.mosaic, state.mask)], { type: 'text/csv' })
       const fd = new FormData()
       fd.append('group_name', groupName)
       fd.append('mosaic', pngBlob, 'face-mosaic.png')
+      fd.append('mosaic_csv', csvBlob, 'face-mosaic.csv')
       const res = await fetch('/api/gallery/submit', { method: 'POST', body: fd })
       const json = await res.json() as { success: boolean; redirectUrl?: string; error?: string }
       if (json.success && json.redirectUrl) {

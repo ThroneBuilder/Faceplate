@@ -33,3 +33,17 @@ export function appendSubmission(dataDir: string, record: SubmissionRecord): voi
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, JSON.stringify(all, null, 2))
 }
+
+export function deleteSubmission(dataDir: string, uuid: string, slug: string): void {
+  const all = readAll(dataDir)
+  const filtered = all.filter(r => !(r.uuid === uuid && r.slug === slug))
+  writeFileSync(manifestPath(dataDir), JSON.stringify(filtered, null, 2))
+}
+
+export function promoteSubmission(dataDir: string, uuid: string, slug: string): void {
+  const all = readAll(dataDir)
+  const idx = all.findIndex(r => r.uuid === uuid && r.slug === slug)
+  if (idx === -1) return
+  all[idx] = { ...all[idx], timestamp: 0 }
+  writeFileSync(manifestPath(dataDir), JSON.stringify(all, null, 2))
+}

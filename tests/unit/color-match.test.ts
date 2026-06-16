@@ -52,15 +52,16 @@ describe('matchColors', () => {
   })
 
   describe('nearest-color sanity', () => {
-    it('white input maps to the palettes lightest color', () => {
-      const grid = makeGrid(1, 1, 242, 243, 242)
+    it('white input maps to White (id 1)', () => {
+      const white = palette.find(c => c.id === 1)!
+      const grid = makeGrid(1, 1, white.rgb[0], white.rgb[1], white.rgb[2])
       const [[id]] = matchColors(grid, palette)
-      // id 1 is White in our palette
       expect(id).toBe(1)
     })
 
-    it('black input maps to id 2 (Black)', () => {
-      const grid = makeGrid(1, 1, 27, 42, 52)
+    it('black input maps to Black (id 2)', () => {
+      const black = palette.find(c => c.id === 2)!
+      const grid = makeGrid(1, 1, black.rgb[0], black.rgb[1], black.rgb[2])
       const [[id]] = matchColors(grid, palette)
       expect(id).toBe(2)
     })

@@ -84,7 +84,9 @@ function ciede2000(
   )
 }
 
-// ─── Palette matching ─────────────────────────────────────────────────────────
+// ─── Palette matching with Floyd-Steinberg error diffusion ────────────────────
+// Set to 1.0 to enable dithering, 0.0 to disable (nearest-neighbour only).
+const DITHER_STRENGTH = 0.1
 
 interface CachedPaletteEntry {
   id: number
@@ -98,8 +100,6 @@ export function matchColors(grid: RgbGrid, palette: LegoColor[]): number[][] {
     throw new PipelineError('EMPTY_PALETTE', 'Palette must contain at least one color')
   }
 
-  // Snapshot palette RGB into a flat array once — avoids repeated property lookups
-  // inside the hot 34,816-iteration loop.
   const cached: CachedPaletteEntry[] = palette.map(c => ({
     id: c.id,
     r: c.rgb[0],
@@ -107,18 +107,79 @@ export function matchColors(grid: RgbGrid, palette: LegoColor[]): number[][] {
     b: c.rgb[2],
   }))
 
-  return grid.map(row =>
-    row.map(([r, g, b]) => {
+  const rows = grid.length
+  const cols = rows > 0 ? grid[0].length : 0
+
+  // Flat error buffer — one float per channel per pixel.
+  // Floyd-Steinberg distributes quantization error to right and below-row
+  // neighbours in raster order, so we can discard each row once processed.
+  const er = new Float32Array(rows * cols)
+  const eg = new Float32Array(rows * cols)
+  const eb = new Float32Array(rows * cols)
+
+  const result: number[][] = Array.from({ length: rows }, () => new Array<number>(cols))
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c
+      const [pr, pg, pb] = grid[r][c]
+
+      // Add accumulated error, clamp to valid RGB range
+      const ar = Math.max(0, Math.min(255, pr + er[idx]))
+      const ag = Math.max(0, Math.min(255, pg + eg[idx]))
+      const ab = Math.max(0, Math.min(255, pb + eb[idx]))
+
+      // Nearest palette colour (CIEDE2000)
       let minDist = Infinity
       let bestId = cached[0].id
-      for (const { id, r: pr, g: pg, b: pb } of cached) {
-        const dist = ciede2000(r, g, b, pr, pg, pb)
+      let bestR = cached[0].r
+      let bestG = cached[0].g
+      let bestB = cached[0].b
+
+      for (const entry of cached) {
+        const dist = ciede2000(ar, ag, ab, entry.r, entry.g, entry.b)
         if (dist < minDist) {
           minDist = dist
-          bestId = id
+          bestId = entry.id
+          bestR = entry.r
+          bestG = entry.g
+          bestB = entry.b
         }
       }
-      return bestId
-    }),
-  )
+
+      result[r][c] = bestId
+
+      // Quantization error in RGB space (scaled by DITHER_STRENGTH)
+      const qer = (ar - bestR) * DITHER_STRENGTH
+      const qeg = (ag - bestG) * DITHER_STRENGTH
+      const qeb = (ab - bestB) * DITHER_STRENGTH
+
+      // Floyd-Steinberg kernel:  . * 7   (7/16 right)
+      //                         3 5 1   (3/16 below-left, 5/16 below, 1/16 below-right)
+      if (c + 1 < cols) {
+        const i = idx + 1
+        er[i] += qer * 0.4375
+        eg[i] += qeg * 0.4375
+        eb[i] += qeb * 0.4375
+      }
+      if (r + 1 < rows) {
+        const base = (r + 1) * cols
+        if (c > 0) {
+          er[base + c - 1] += qer * 0.1875
+          eg[base + c - 1] += qeg * 0.1875
+          eb[base + c - 1] += qeb * 0.1875
+        }
+        er[base + c] += qer * 0.3125
+        eg[base + c] += qeg * 0.3125
+        eb[base + c] += qeb * 0.3125
+        if (c + 1 < cols) {
+          er[base + c + 1] += qer * 0.0625
+          eg[base + c + 1] += qeg * 0.0625
+          eb[base + c + 1] += qeb * 0.0625
+        }
+      }
+    }
+  }
+
+  return result
 }

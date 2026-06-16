@@ -21,9 +21,10 @@ function makeRainbowGradient(size = 256): ImageData {
 }
 
 function makeSolidWhite(size = 256): ImageData {
+  const white = (PALETTE as LegoColor[]).find(c => c.id === 1)!
   const id = new ImageData(size, size)
   for (let i = 0; i < size * size * 4; i += 4) {
-    id.data[i] = 242; id.data[i + 1] = 243; id.data[i + 2] = 242; id.data[i + 3] = 255
+    id.data[i] = white.rgb[0]; id.data[i + 1] = white.rgb[1]; id.data[i + 2] = white.rgb[2]; id.data[i + 3] = 255
   }
   return id
 }

@@ -10,7 +10,7 @@ beforeEach(() => { mkdirSync(TEST_DIR, { recursive: true }) })
 afterEach(()  => { if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true, force: true }) })
 
 const rec = (slug: string, ts: number): SubmissionRecord => ({
-  uuid: `uuid-${ts}`, slug, timestamp: ts, filename: `uuid-${ts}.png`,
+  uuid: `uuid-${ts}`, slug, timestamp: ts, filename: `uuid-${ts}.png`, name: '',
 })
 
 describe('readSubmissions', () => {

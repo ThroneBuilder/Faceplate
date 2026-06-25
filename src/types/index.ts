@@ -242,6 +242,20 @@ export type AppState =
   | { phase: 'generating'; adjusted: AdjustedImage }
   | { phase: 'result'; mosaic: Mosaic; adjusted: AdjustedImage; crop: HeadCropSelection }
 
+// ─── Backing plate layout (Phase 007) ────────────────────────────────────────
+
+export interface PlateSpec {
+  id: number      // 1-indexed
+  width: number   // studs wide
+  height: number  // studs tall
+}
+
+export interface PlateLayoutResult {
+  top: number[][]     // [row][col] → plateId (1-indexed); 0 = masked
+  bottom: number[][]  // [row][col] → plateId (1-indexed); 0 = masked
+  plates: PlateSpec[] // plates[id-1] gives spec for that plateId
+}
+
 // ─── Session persistence (Phase 005) ─────────────────────────────────────────
 
 export interface SessionMetadata {

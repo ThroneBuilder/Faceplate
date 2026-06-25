@@ -3,20 +3,38 @@
     {
       "slug": "hall-of-faces",
       "displayName": "Hall of Faces",
-      "description": "A public gallery of LEGO mosaic portraits from the Faceplate community.",
+      "description": "open sharing of face mosaics",
+      "visibility": "public"
+    },
+    {
+      "slug": "brickcon-2026",
+      "displayName": "BrickCon 2026",
+      "description": "crowd participation at Lego event",
       "visibility": "public"
     },
     {
       "slug": "hall-of-nobles",
       "displayName": "Hall of Nobles",
-      "description": "A private collection of LEGO mosaic portraits.",
+      "description": "Jeff's friends and family",
       "visibility": "unlisted"
     },
     {
-      "slug": "brickcon-2026",
-      "displayName": "BrickCon 2026",
-      "description": "Mosaic portraits created by BrickCon 2026 attendees.",
-      "visibility": "public"
+      "slug": "game-of-thrones",
+      "displayName": "Game of Thrones",
+      "description": "Game of Thrones characters",
+      "visibility": "unlisted"
+    },
+    {
+      "slug": "seattle-faces",
+      "displayName": "Seattle Faces",
+      "description": "Seattle celebrities",
+      "visibility": "unlisted"
+    },
+    {
+      "slug": "hall-of-presidents",
+      "displayName": "Hall of Presidents",
+      "description": "recent US presidents",
+      "visibility": "unlisted"
     }
   ]
 }

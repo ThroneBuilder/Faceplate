@@ -26,11 +26,12 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ success: false, error: 'Gallery not found' }, 404)
   }
 
+  let action: string
   try {
-    promoteSubmission(GALLERY_DATA_DIR, uuid, slug)
+    action = promoteSubmission(GALLERY_DATA_DIR, uuid, slug)
   } catch {
     return json({ success: false, error: 'Failed to update manifest' }, 500)
   }
 
-  return json({ success: true })
+  return json({ success: true, action })
 }

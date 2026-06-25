@@ -19,7 +19,7 @@
 
 **Purpose**: Verify project environment; no structural changes needed (existing Astro 4 / TypeScript project).
 
-- [ ] T001 Confirm `pnpm test` passes on branch `007-gallery-platform` before any changes (baseline)
+- [X] T001 Confirm `pnpm test` passes on branch `007-gallery-platform` before any changes (baseline)
 
 ---
 
@@ -29,14 +29,14 @@
 
 **⚠️ CRITICAL**: No story work begins until T002–T009 are complete.
 
-- [ ] T002 Update `gallery-groups.json` — add `game-of-thrones` (unlisted), `seattle-faces` (unlisted), and `hall-of-presidents` (unlisted, description: "recent US presidents"); update all six descriptions to match spec FR-003 (e.g. `"open sharing of face mosaics"` for hall-of-faces)
-- [ ] T003 [P] Add `getPublicGalleries(): GalleryGroup[]` and `getRestrictedGalleries(): GalleryGroup[]` helper exports to `src/lib/gallery/config.ts` (filter on `visibility`)
-- [ ] T004 [P] Add `PlateSpec` and `PlateLayoutResult` interfaces to `src/types/index.ts` per data-model.md (PlateSpec: id/width/height; PlateLayoutResult: top[][], bottom[][], plates[])
-- [ ] T005 [P] Add `name: string` field to `SubmissionRecord` interface in `src/lib/gallery/submissions.ts`; update `readAll()` to default missing `name` to `''` for backward compat
-- [ ] T006 [P] Implement `computePlateLayout(mask: FaceMask, mosaicWidth: 32, mosaicHeight: BrickHeight): PlateLayoutResult` in `src/lib/mosaic/plate-layout.ts` — greedy largest-fit algorithm: front layer horizontal-first, back layer vertical-first; piece set {1×1, 1×2, 1×3, 1×4, 2×2, 2×3, 2×4, 2×6, 2×8} and transpositions
-- [ ] T007 [P] Write unit tests for `computePlateLayout` in `tests/unit/plate-layout.test.ts`: (a) full-rectangle mask produces valid coverage; (b) masked cells produce 0 in both layers; (c) every cell in a non-zero slot maps to a valid plateId in the plates array; (d) no plate piece extends outside the mask
-- [ ] T008 [P] Implement `generateRandomName(): string` in `src/lib/gallery/random-name.ts` — format `{extreme-adj} {brick-adj} {noun}`, each drawn from a fixed embedded wordlist (≥10 words each); write one unit test in `tests/unit/random-name.test.ts` confirming output matches pattern and contains three words
-- [ ] T009 Create `src/components/GalleryNav.astro` — reads all galleries via `getGalleries()` server-side; renders right-side header nav with two labeled groups "Public" (visibility=public) and "Restricted" (visibility=unlisted); each entry is an `<a>` linking to `/{slug}`; accepts optional `currentSlug?: string` prop to highlight active gallery
+- [X] T002 Update `gallery-groups.json` — add `game-of-thrones` (unlisted), `seattle-faces` (unlisted), and `hall-of-presidents` (unlisted, description: "recent US presidents"); update all six descriptions to match spec FR-003 (e.g. `"open sharing of face mosaics"` for hall-of-faces)
+- [X] T003 [P] Add `getPublicGalleries(): GalleryGroup[]` and `getRestrictedGalleries(): GalleryGroup[]` helper exports to `src/lib/gallery/config.ts` (filter on `visibility`)
+- [X] T004 [P] Add `PlateSpec` and `PlateLayoutResult` interfaces to `src/types/index.ts` per data-model.md (PlateSpec: id/width/height; PlateLayoutResult: top[][], bottom[][], plates[])
+- [X] T005 [P] Add `name: string` field to `SubmissionRecord` interface in `src/lib/gallery/submissions.ts`; update `readAll()` to default missing `name` to `''` for backward compat
+- [X] T006 [P] Implement `computePlateLayout(mask: FaceMask, mosaicWidth: 32, mosaicHeight: BrickHeight): PlateLayoutResult` in `src/lib/mosaic/plate-layout.ts` — greedy largest-fit algorithm: front layer horizontal-first, back layer vertical-first; piece set {1×1, 1×2, 1×3, 1×4, 2×2, 2×3, 2×4, 2×6, 2×8} and transpositions
+- [X] T007 [P] Write unit tests for `computePlateLayout` in `tests/unit/plate-layout.test.ts`: (a) full-rectangle mask produces valid coverage; (b) masked cells produce 0 in both layers; (c) every cell in a non-zero slot maps to a valid plateId in the plates array; (d) no plate piece extends outside the mask
+- [X] T008 [P] Implement `generateRandomName(): string` in `src/lib/gallery/random-name.ts` — format `{extreme-adj} {brick-adj} {noun}`, each drawn from a fixed embedded wordlist (≥10 words each); write one unit test in `tests/unit/random-name.test.ts` confirming output matches pattern and contains three words
+- [X] T009 Create `src/components/GalleryNav.astro` — reads all galleries via `getGalleries()` server-side; renders right-side header nav with two labeled groups "Public" (visibility=public) and "Restricted" (visibility=unlisted); each entry is an `<a>` linking to `/{slug}`; accepts optional `currentSlug?: string` prop to highlight active gallery
 
 **Checkpoint**: Run `pnpm test` — T007 and T008 tests must pass. All types compile. `gallery-groups.json` has 5 entries.
 
@@ -48,9 +48,9 @@
 
 **Independent Test**: Quickstart Scenario 1 — visit any gallery page; observe "Public" and "Restricted" nav groups with 2 + 3 links; click each link; verify description in header.
 
-- [ ] T010 [US1] Import `GalleryNav` and render it in the right side of the header in `src/pages/[gallery].astro`; pass `currentSlug={slug}` prop; preserve existing heading/tagline layout
-- [ ] T011 [US1] Import `GalleryNav` and render it in the right side of the header in `src/pages/index.astro`; no currentSlug (not a gallery page)
-- [ ] T012 [US1] Update the gallery page `<p class="tagline">` in `src/pages/[gallery].astro` to render `gallery.description` (already available from `findGallery()`; descriptions now updated in T002)
+- [X] T010 [US1] Import `GalleryNav` and render it in the right side of the header in `src/pages/[gallery].astro`; pass `currentSlug={slug}` prop; preserve existing heading/tagline layout
+- [X] T011 [US1] Import `GalleryNav` and render it in the right side of the header in `src/pages/index.astro`; no currentSlug (not a gallery page)
+- [X] T012 [US1] Update the gallery page `<p class="tagline">` in `src/pages/[gallery].astro` to render `gallery.description` (already available from `findGallery()`; descriptions now updated in T002)
 
 **Checkpoint**: Navigate to `/hall-of-faces` — confirm 5 gallery links in header; confirm "open sharing of face mosaics" tagline.
 
@@ -64,9 +64,9 @@
 
 **Depends on**: T006 (`computePlateLayout`), T004 (`PlateLayoutResult` type)
 
-- [ ] T013 [US2] Add a plate preview panel to the face-shaping step UI in `src/pages/index.astro` — two stacked `<canvas>` elements (or `<svg>`) labeled "Front" and "Back", positioned to the right of the shaping canvas; size them at approximately half the shaping canvas height each
-- [ ] T014 [US2] Implement `renderPlateLayer(canvas: HTMLCanvasElement, layout: number[][], plates: PlateSpec[], cellPx: number): void` as a client-side helper in the inline script of `src/pages/index.astro` — fills each plate piece with a light background + 1px border; labels plates with width ≥ 4 AND height ≥ 2 (or transposed) with `{w}×{h}` centered in the piece
-- [ ] T015 [US2] Wire the plate preview to update whenever the face mask changes in `src/pages/index.astro` — call `computePlateLayout(mask, 32, mosaic.height)` then `renderPlateLayer()` for both Top and Bottom canvases; ensure update fires on initial mask render and after each mask adjustment
+- [X] T013 [US2] Add a plate preview panel to the face-shaping step UI in `src/pages/index.astro` — two stacked `<canvas>` elements (or `<svg>`) labeled "Front" and "Back", positioned to the right of the shaping canvas; size them at approximately half the shaping canvas height each
+- [X] T014 [US2] Implement `renderPlateLayer(canvas: HTMLCanvasElement, layout: number[][], plates: PlateSpec[], cellPx: number): void` as a client-side helper in the inline script of `src/pages/index.astro` — fills each plate piece with a light background + 1px border; labels plates with width ≥ 4 AND height ≥ 2 (or transposed) with `{w}×{h}` centered in the piece
+- [X] T015 [US2] Wire the plate preview to update whenever the face mask changes in `src/pages/index.astro` — call `computePlateLayout(mask, 32, mosaic.height)` then `renderPlateLayer()` for both Top and Bottom canvases; ensure update fires on initial mask render and after each mask adjustment
 
 **Checkpoint**: Shape a face — two plate diagrams appear; labels visible on ≥2×4 pieces; diagrams refresh on mask change.
 
@@ -80,11 +80,11 @@
 
 **Depends on**: T003 (`getPublicGalleries`), T008 (`generateRandomName`), T005 (`name` in SubmissionRecord)
 
-- [ ] T016 [US3] Add a required `Name` input field to the sharing form in `src/pages/index.astro` — default value set by `generateRandomName()` called client-side; validate non-empty/non-whitespace on submit; show inline error if blank
-- [ ] T017 [US3] Replace the gallery selector in the sharing form in `src/pages/index.astro` with a dropdown populated only from `getPublicGalleries()` (passed as an Astro prop/variable); default selection is `hall-of-faces`; read `?gallery=` URL param client-side and pre-select matching public gallery (fall back to default if slug is not public)
-- [ ] T018 [US3] In `src/pages/index.astro` client script, build a basic `MosaicDataFile` JSON at share time — fields: `name`, `date` (ISO 8601), `size` (mosaic.height), `brightness`, `contrast`, `mosaic` (grid with 0 for masked cells) — send as `mosaic_json` File in FormData alongside `mosaic` PNG
-- [ ] T019 [US3] Update `src/pages/api/gallery/submit.ts` — (a) read and validate `name` field (required, max 80 chars, non-whitespace); (b) validate group is a public gallery; (c) save incoming `mosaic_json` as `{uuid}.json` instead of CSV; (d) store `name` in the `SubmissionRecord` written to manifest
-- [ ] T020 [US3] Update `src/pages/api/gallery/delete.ts` — unlink `{uuid}.json` instead of `{uuid}.csv` when deleting a submission
+- [X] T016 [US3] Add a required `Name` input field to the sharing form in `src/pages/index.astro` — default value set by `generateRandomName()` called client-side; validate non-empty/non-whitespace on submit; show inline error if blank
+- [X] T017 [US3] Replace the gallery selector in the sharing form in `src/pages/index.astro` with a dropdown populated only from `getPublicGalleries()` (passed as an Astro prop/variable); default selection is `hall-of-faces`; read `?gallery=` URL param client-side and pre-select matching public gallery (fall back to default if slug is not public)
+- [X] T018 [US3] In `src/pages/index.astro` client script, build a basic `MosaicDataFile` JSON at share time — fields: `name`, `date` (ISO 8601), `size` (mosaic.height), `brightness`, `contrast`, `mosaic` (grid with 0 for masked cells) — send as `mosaic_json` File in FormData alongside `mosaic` PNG
+- [X] T019 [US3] Update `src/pages/api/gallery/submit.ts` — (a) read and validate `name` field (required, max 80 chars, non-whitespace); (b) validate group is a public gallery; (c) save incoming `mosaic_json` as `{uuid}.json` instead of CSV; (d) store `name` in the `SubmissionRecord` written to manifest
+- [X] T020 [US3] Update `src/pages/api/gallery/delete.ts` — unlink `{uuid}.json` instead of `{uuid}.csv` when deleting a submission
 
 **Checkpoint**: Complete full share flow — confirm Name field, public-only dropdown, `?gallery=brickcon-2026` pre-selects BrickCon; submission creates `.json` file in gallery-data; submission rejected if name blank or gallery is restricted.
 
@@ -98,8 +98,8 @@
 
 **Depends on**: T005 (`name` in SubmissionRecord), T019 (name stored at submit time)
 
-- [ ] T021 [US4] Update `src/pages/[gallery].astro` — pass `name` from each `SubmissionRecord` into the batch/slot data structures alongside `uuid` and image URL
-- [ ] T022 [US4] Render a tooltip for each occupied mosaic slot in `src/pages/[gallery].astro` — add a `title={name}` attribute to the canvas wrapper or an absolutely-positioned `<span data-name={name}>` styled as a tooltip on hover; ensure it appears within 300ms (CSS `opacity` transition sufficient)
+- [X] T021 [US4] Update `src/pages/[gallery].astro` — pass `name` from each `SubmissionRecord` into the batch/slot data structures alongside `uuid` and image URL
+- [X] T022 [US4] Render a tooltip for each occupied mosaic slot in `src/pages/[gallery].astro` — add a `title={name}` attribute to the canvas wrapper or an absolutely-positioned `<span data-name={name}>` styled as a tooltip on hover; ensure it appears within 300ms (CSS `opacity` transition sufficient)
 
 **Checkpoint**: Gallery page — hover over a submitted mosaic; tooltip shows the stored name.
 
@@ -113,8 +113,8 @@
 
 **Depends on**: T006 (`computePlateLayout`), T018 (basic JSON built), T019 (JSON saved to disk)
 
-- [ ] T023 [US5] Extend the `MosaicDataFile` JSON builder in `src/pages/index.astro` client script — (a) call `computePlateLayout(mask, 32, mosaic.height)` to get `top`, `bottom`, `plates`; (b) call `derivePartsList(mosaic, palette)` (existing function) and map entries to `{ name, partNumber, color, count }` using BrickLink part numbers where available; (c) include all fields in the JSON sent as `mosaic_json`
-- [ ] T024 [US5] Add `GET /api/gallery/image/{slug}/{uuid}.json` route — extend or sibling the existing image-serving endpoint (`src/pages/api/gallery/image/[slug]/[...file].ts` or equivalent) to serve `.json` files from the gallery-data directory with `Content-Type: application/json`
+- [X] T023 [US5] Extend the `MosaicDataFile` JSON builder in `src/pages/index.astro` client script — (a) call `computePlateLayout(mask, 32, mosaic.height)` to get `top`, `bottom`, `plates`; (b) call `derivePartsList(mosaic, palette)` (existing function) and map entries to `{ name, partNumber, color, count }` using BrickLink part numbers where available; (c) include all fields in the JSON sent as `mosaic_json`
+- [X] T024 [US5] Add `GET /api/gallery/image/{slug}/{uuid}.json` route — extend or sibling the existing image-serving endpoint (`src/pages/api/gallery/image/[slug]/[...file].ts` or equivalent) to serve `.json` files from the gallery-data directory with `Content-Type: application/json`
 
 **Checkpoint**: Download a submission JSON; confirm `top`/`bottom` arrays match mosaic dimensions; `plates` array non-empty; `parts` array sums to mosaic visible area piece count.
 
@@ -128,17 +128,17 @@
 
 **Depends on**: T003 (gallery list for Move dropdown), T005 (name in record), T020 (delete .json), T024 (JSON download endpoint)
 
-- [ ] T025 [US6] Add `moveSubmission(dataDir, uuid, fromSlug, toSlug): void` and `moveSubmissions(dataDir, uuids, fromSlug, toSlug): { moved: string[]; failed: string[] }` to `src/lib/gallery/submissions.ts` — updates manifest entries; caller moves files
-- [ ] T026 [US6] Update `promoteSubmission()` in `src/lib/gallery/submissions.ts` — replace timestamp=0 approach with a position-aware 3-state reorder: (state 1) not at top of group → move to top of current group; (state 2) at top of group, not first overall → move to top of previous group; (state 3) absolute first → move to absolute last; return the action taken
-- [ ] T027 [US6] Create `src/pages/api/gallery/move.ts` — `POST { uuids, fromSlug, toSlug }` endpoint; validates both slugs exist; calls `moveSubmissions()`; moves PNG + JSON files via `fs.rename` (fallback copy+delete); returns `{ success, moved, failed }`
-- [ ] T028 [US6] Update `src/pages/api/gallery/promote.ts` — call updated `promoteSubmission()` that returns the action taken; return `{ success: true, action: 'moved-to-top' | 'moved-to-prev-group' | 'moved-to-bottom' }` in response
-- [ ] T029 [US6] Rework the admin overlay in `src/pages/[gallery].astro` — replace current 2-button layout with 4 buttons per occupied cubby: (a) upper-left green ↑ `.move-btn`; (b) upper-right grey `□` `.select-btn` (checkbox appearance); (c) lower-left blue ↓ `.download-btn`; (d) lower-right red ✕ `.delete-btn`; update `slotButtonPos` to compute all four corner positions
-- [ ] T030 [US6] Update move button click handler in `src/pages/[gallery].astro` inline script — POST to `/api/gallery/promote`; update button tooltip based on response `action` for the NEXT click (no reload needed for tooltip update; reload after action completes)
-- [ ] T031 [US6] Implement download button click handler in `src/pages/[gallery].astro` inline script — trigger `window.open` or `<a download>` pointing to `/api/gallery/image/{slug}/{uuid}.json`
-- [ ] T032 [US6] Implement select checkbox toggle in `src/pages/[gallery].astro` inline script — maintain `selected: Set<string>`; toggle uuid on click; update checkbox visual state; show/hide bulk action bar based on `selected.size > 0`
-- [ ] T033 [US6] Render bulk action bar in `src/pages/[gallery].astro` header (visible only when `selected.size > 0`) — show: "Select All" checkbox, "Clear" button, "Move to" gallery `<select>` + "Move" button, "Download" button, "Delete" button; style consistently with admin mode
-- [ ] T034 [US6] Wire bulk actions in `src/pages/[gallery].astro` inline script: (a) "Select All" adds all visible uuids; (b) "Clear" empties selection; (c) "Move" POSTs to `/api/gallery/move` with array of selected uuids; (d) "Download" triggers sequential downloads of JSON files for each selected uuid; (e) "Delete" confirms once then POSTs to `/api/gallery/delete` for each selected uuid sequentially; reload on completion
-- [ ] T035 [US6] Add `title` tooltips to all admin control buttons in `src/pages/[gallery].astro` — move button tooltip is dynamic (computed per-position: "Move to top", "Move to previous group", or "Move to bottom"); select: "Select"; download: "Download build data"; delete: "Delete this face"; bulk tooltips include count (e.g., "Move 3 faces to Hall of Nobles")
+- [X] T025 [US6] Add `moveSubmission(dataDir, uuid, fromSlug, toSlug): void` and `moveSubmissions(dataDir, uuids, fromSlug, toSlug): { moved: string[]; failed: string[] }` to `src/lib/gallery/submissions.ts` — updates manifest entries; caller moves files
+- [X] T026 [US6] Update `promoteSubmission()` in `src/lib/gallery/submissions.ts` — replace timestamp=0 approach with a position-aware 3-state reorder: (state 1) not at top of group → move to top of current group; (state 2) at top of group, not first overall → move to top of previous group; (state 3) absolute first → move to absolute last; return the action taken
+- [X] T027 [US6] Create `src/pages/api/gallery/move.ts` — `POST { uuids, fromSlug, toSlug }` endpoint; validates both slugs exist; calls `moveSubmissions()`; moves PNG + JSON files via `fs.rename` (fallback copy+delete); returns `{ success, moved, failed }`
+- [X] T028 [US6] Update `src/pages/api/gallery/promote.ts` — call updated `promoteSubmission()` that returns the action taken; return `{ success: true, action: 'moved-to-top' | 'moved-to-prev-group' | 'moved-to-bottom' }` in response
+- [X] T029 [US6] Rework the admin overlay in `src/pages/[gallery].astro` — replace current 2-button layout with 4 buttons per occupied cubby: (a) upper-left green ↑ `.move-btn`; (b) upper-right grey `□` `.select-btn` (checkbox appearance); (c) lower-left blue ↓ `.download-btn`; (d) lower-right red ✕ `.delete-btn`; update `slotButtonPos` to compute all four corner positions
+- [X] T030 [US6] Update move button click handler in `src/pages/[gallery].astro` inline script — POST to `/api/gallery/promote`; update button tooltip based on response `action` for the NEXT click (no reload needed for tooltip update; reload after action completes)
+- [X] T031 [US6] Implement download button click handler in `src/pages/[gallery].astro` inline script — trigger `window.open` or `<a download>` pointing to `/api/gallery/image/{slug}/{uuid}.json`
+- [X] T032 [US6] Implement select checkbox toggle in `src/pages/[gallery].astro` inline script — maintain `selected: Set<string>`; toggle uuid on click; update checkbox visual state; show/hide bulk action bar based on `selected.size > 0`
+- [X] T033 [US6] Render bulk action bar in `src/pages/[gallery].astro` header (visible only when `selected.size > 0`) — show: "Select All" checkbox, "Clear" button, "Move to" gallery `<select>` + "Move" button, "Download" button, "Delete" button; style consistently with admin mode
+- [X] T034 [US6] Wire bulk actions in `src/pages/[gallery].astro` inline script: (a) "Select All" adds all visible uuids; (b) "Clear" empties selection; (c) "Move" POSTs to `/api/gallery/move` with array of selected uuids; (d) "Download" triggers sequential downloads of JSON files for each selected uuid; (e) "Delete" confirms once then POSTs to `/api/gallery/delete` for each selected uuid sequentially; reload on completion
+- [X] T035 [US6] Add `title` tooltips to all admin control buttons in `src/pages/[gallery].astro` — move button tooltip is dynamic (computed per-position: "Move to top", "Move to previous group", or "Move to bottom"); select: "Select"; download: "Download build data"; delete: "Delete this face"; bulk tooltips include count (e.g., "Move 3 faces to Hall of Nobles")
 
 **Checkpoint**: Navigate to `/hall-of-faces?admin=true` with 2+ submissions; verify 4 buttons per face; select 2 faces; bulk bar appears; Move to Hall of Nobles succeeds; Download downloads JSON; Delete removes face; wrap-around move on top face moves it to bottom.
 
@@ -146,11 +146,11 @@
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T036 [P] Run `pnpm test` — all unit tests pass (T007 plate-layout, T008 random-name)
-- [ ] T037 [P] Run `pnpm typecheck` (or `astro check`) — zero TypeScript errors across all modified files
+- [X] T036 [P] Run `pnpm test` — all unit tests pass (T007 plate-layout, T008 random-name)
+- [X] T037 [P] Run `pnpm typecheck` (or `astro check`) — zero TypeScript errors across all modified files
 - [ ] T038 Validate all 7 quickstart scenarios manually against the running dev server
-- [ ] T039 [P] Update `src/lib/gallery/submissions.ts` — remove `promoteSubmission()` timestamp=0 implementation (now superseded by 3-state logic in T026); keep function signature for backward compat as a thin wrapper
-- [ ] T040 [P] Delete legacy `{uuid}.csv` handling from submit/delete endpoints if any old CSV logic remains after T019/T020
+- [X] T039 [P] Update `src/lib/gallery/submissions.ts` — remove `promoteSubmission()` timestamp=0 implementation (now superseded by 3-state logic in T026); keep function signature for backward compat as a thin wrapper
+- [X] T040 [P] Delete legacy `{uuid}.csv` handling from submit/delete endpoints if any old CSV logic remains after T019/T020
 
 ---
 

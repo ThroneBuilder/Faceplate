@@ -4,6 +4,7 @@ import MosaicDisplay from '../components/MosaicDisplay.astro'
 import PartsList from '../components/PartsList.astro'
 import CandidateSection from '../components/CandidateSection.astro'
 import FaceShapingSection from '../components/FaceShapingSection.astro'
+import GalleryNav from '../components/GalleryNav.astro'
 ---
 
 <!doctype html>
@@ -17,9 +18,12 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   <body>
     <header>
       <div class="header-inner">
-        <h1>Faceplate</h1>
-        <p class="tagline">Turn any face into a LEGO mosaic</p>
-        <a class="more-info" href="https://thronebuilder.com/blog/faceplate/" target="_blank" rel="noopener noreferrer">Learn more about this project ↗</a>
+        <div class="header-left">
+          <h1>Faceplate</h1>
+          <p class="tagline">Turn any face into a LEGO mosaic</p>
+          <a class="more-info" href="https://thronebuilder.com/blog/faceplate/" target="_blank" rel="noopener noreferrer">Learn more about this project ↗</a>
+        </div>
+        <GalleryNav />
       </div>
     </header>
 
@@ -133,8 +137,11 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   import { spawnCandidateBatch } from '../lib/candidates/worker-pool.js'
   import { hydrateGridFromCache } from '../lib/candidates/cache.js'
   import { buildNextGrid } from '../lib/candidates/grid.js'
-  import type { FaceMask } from '../types/index.js'
+  import type { FaceMask, BrickHeight, PlateSpec } from '../types/index.js'
   import { isCellVisible } from '../lib/face-shaping/mask.js'
+  import { computePlateLayout } from '../lib/mosaic/plate-layout.js'
+  import { generateRandomName } from '../lib/gallery/random-name.js'
+  import { derivePartsList } from '../lib/mosaic/parts-list.js'
   import { renderCubbyProjection, loadCubbyImage, CUBBY_W, CUBBY_H } from '../lib/face-shaping/cubby-render.js'
   import { serialiseSession, saveSession, loadSession, clearSession } from '../lib/session/session-state.js'
   import { downloadResultsZip } from '../lib/export/download-zip.js'
@@ -249,10 +256,14 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   const faceShapingSectionEl  = document.getElementById('face-shaping-section')!
   const maskEditorGridEl      = document.getElementById('mask-editor-grid')!
   const cubbyCanvasEl         = document.getElementById('cubby-canvas') as HTMLCanvasElement
+  const plateTopCanvasEl      = document.getElementById('plate-top-canvas') as HTMLCanvasElement
+  const plateBottomCanvasEl   = document.getElementById('plate-bottom-canvas') as HTMLCanvasElement
   const downloadBtn           = document.getElementById('download-btn') as HTMLButtonElement
   const addToGroupBtn         = document.getElementById('add-to-group-btn') as HTMLButtonElement
   const groupNameInput        = document.getElementById('group-name-input') as HTMLSelectElement
   const groupErrorEl          = document.getElementById('group-error')!
+  const shareNameInput        = document.getElementById('share-name-input') as HTMLInputElement
+  const shareNameErrorEl      = document.getElementById('share-name-error')!
 
   const adjustmentPanel   = document.getElementById('adjustment-panel')!
   const previewCanvas     = document.getElementById('preview-canvas') as HTMLCanvasElement
@@ -625,6 +636,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
         const bp = renderMaskEditor(state.mosaic, state.mask)
         syncCubbyHeight(state.mosaic, bp)
         renderCubbyProjectionIfReady(state)
+        renderPlatePreview(state.mask, state.mosaic.height)
         break
       }
 
@@ -1135,6 +1147,56 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     renderCubbyProjection(ctx, cubbyImage, state.mosaic, state.mask, palette)
   }
 
+  function renderPlateLayer(
+    canvas: HTMLCanvasElement,
+    layout: number[][],
+    plates: PlateSpec[],
+    cellPx: number,
+  ): void {
+    const rows = layout.length
+    const cols = layout[0]?.length ?? 0
+    canvas.width = cols * cellPx
+    canvas.height = rows * cellPx
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const painted = new Set<number>()
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const id = layout[r][c]
+        if (id === 0 || painted.has(id)) continue
+        painted.add(id)
+        const plate = plates[id - 1]
+        if (!plate) continue
+        const x = c * cellPx
+        const y = r * cellPx
+        const pw = plate.width * cellPx
+        const ph = plate.height * cellPx
+        ctx.fillStyle = '#e4e8ee'
+        ctx.fillRect(x, y, pw, ph)
+        ctx.strokeStyle = '#6b7a8f'
+        ctx.lineWidth = 1
+        ctx.strokeRect(x + 0.5, y + 0.5, pw - 1, ph - 1)
+        const showLabel = (plate.width >= 4 && plate.height >= 2) || (plate.height >= 4 && plate.width >= 2)
+        if (showLabel) {
+          ctx.fillStyle = '#334'
+          ctx.font = `${Math.max(6, Math.floor(cellPx * 0.85))}px system-ui`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(`${plate.width}×${plate.height}`, x + pw / 2, y + ph / 2)
+        }
+      }
+    }
+  }
+
+  function renderPlatePreview(mask: FaceMask, mosaicHeight: BrickHeight): void {
+    const result = computePlateLayout(mask, 32, mosaicHeight)
+    const containerW = plateTopCanvasEl.parentElement?.offsetWidth ?? 120
+    const cellPx = Math.max(3, Math.floor(containerW / 32))
+    renderPlateLayer(plateTopCanvasEl, result.top, result.plates, cellPx)
+    renderPlateLayer(plateBottomCanvasEl, result.bottom, result.plates, cellPx)
+  }
+
   // ─── Mask editor drag state ───────────────────────────────────────────────────
 
   let dragEdge: 'left' | 'right' | null = null
@@ -1160,6 +1222,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     const bp = renderMaskEditor(state.mosaic, newMask)
     syncCubbyHeight(state.mosaic, bp)
     renderCubbyProjectionIfReady(appState as Extract<typeof appState, { phase: 'face-shaping' }>)
+    renderPlatePreview(newMask, state.mosaic.height)
     scheduleMaskSave()
   }
 
@@ -1243,6 +1306,17 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
 
   addToGroupBtn.addEventListener('click', async () => {
     if (appState.phase !== 'face-shaping') return
+
+    // Validate name field
+    const submitterName = shareNameInput.value.trim()
+    shareNameErrorEl.hidden = true
+    if (!submitterName) {
+      shareNameErrorEl.textContent = 'Please enter a name for your submission.'
+      shareNameErrorEl.hidden = false
+      shareNameInput.focus()
+      return
+    }
+
     const groupName = groupNameInput.value.trim()
     if (!groupName) { groupNameInput.focus(); return }
     groupErrorEl.textContent = ''
@@ -1252,11 +1326,36 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
     addToGroupBtn.textContent = 'Submitting…'
     try {
       const pngBlob = await renderFaceMosaicPng(state.mosaic, state.mask, palette)
-      const csvBlob = new Blob([mosaicToCsv(state.mosaic, state.mask)], { type: 'text/csv' })
+
+      // Build MosaicDataFile JSON (plate layout and parts added in T023)
+      const plateLayout = computePlateLayout(state.mask, 32, state.mosaic.height)
+      const partsList = derivePartsList(state.mosaic, palette)
+      const mosaicData = {
+        name: submitterName,
+        date: new Date().toISOString(),
+        size: state.mosaic.height,
+        brightness: state.key.brightnessOffset,
+        contrast: state.key.contrastOffset,
+        mosaic: state.mosaic.grid.map((row, r) =>
+          row.map((id, c) => isCellVisible(state.mask, r, c) ? id : 0)
+        ),
+        top: plateLayout.top,
+        bottom: plateLayout.bottom,
+        plates: plateLayout.plates,
+        parts: partsList.entries.map(e => ({
+          name: e.colorName,
+          partNumber: '3024',
+          color: e.rgbHex,
+          count: e.count,
+        })),
+      }
+      const jsonBlob = new Blob([JSON.stringify(mosaicData)], { type: 'application/json' })
+
       const fd = new FormData()
+      fd.append('name', submitterName)
       fd.append('group_name', groupName)
       fd.append('mosaic', pngBlob, 'face-mosaic.png')
-      fd.append('mosaic_csv', csvBlob, 'face-mosaic.csv')
+      fd.append('mosaic_json', jsonBlob, 'face-mosaic.json')
       const res = await fetch('/api/gallery/submit', { method: 'POST', body: fd })
       const json = await res.json() as { success: boolean; redirectUrl?: string; error?: string }
       if (json.success && json.redirectUrl) {
@@ -1270,7 +1369,7 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
       groupErrorEl.hidden = false
     } finally {
       addToGroupBtn.disabled = false
-      addToGroupBtn.textContent = 'Add to Group'
+      addToGroupBtn.textContent = 'Add to Gallery'
     }
   })
 
@@ -1305,12 +1404,16 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   detectCameraSupport()
   setAcqMode('idle')
 
-  // T010: Select gallery from ?hall= URL parameter, default to hall-of-faces (FR-010)
-  const hallParam = new URLSearchParams(window.location.search).get('hall')
-  const hallTarget = hallParam ?? 'hall-of-faces'
-  // Only set if the option exists in the dropdown
-  const matchingOption = Array.from(groupNameInput.options).find(o => o.value === hallTarget)
-  if (matchingOption) groupNameInput.value = hallTarget
+  // Pre-fill name field with a random name
+  shareNameInput.value = generateRandomName()
+
+  // Select gallery from ?gallery= or ?hall= URL parameter, fall back to hall-of-faces
+  const urlParams = new URLSearchParams(window.location.search)
+  const galleryParam = urlParams.get('gallery') ?? urlParams.get('hall')
+  if (galleryParam) {
+    const matchingOption = Array.from(groupNameInput.options).find(o => o.value === galleryParam)
+    if (matchingOption) groupNameInput.value = galleryParam
+  }
 
   // T011: Attempt session restore before first render
   loadSession().then(async session => {
@@ -1342,7 +1445,8 @@ import FaceShapingSection from '../components/FaceShapingSection.astro'
   }
 
   header { background: #1a1a2e; color: white; padding: 1.25rem 2rem; }
-  .header-inner { max-width: 900px; margin: 0 auto; }
+  .header-inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; }
+  .header-left { flex: 1; min-width: 0; }
   header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
   .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
   .more-info { display: inline-block; margin-top: 0.5rem; font-size: 0.8rem; color: #e87722; text-decoration: none; }

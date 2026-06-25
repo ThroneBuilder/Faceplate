@@ -1,7 +1,7 @@
 ---
 import MosaicMaskEditor from './MosaicMaskEditor.astro'
-import galleryGroups from '../../gallery-groups.json'
-const galleries = galleryGroups.groups
+import { getPublicGalleries } from '../lib/gallery/config.js'
+const galleries = getPublicGalleries()
 ---
 <section id="face-shaping-section" hidden aria-label="Face shaping">
 
@@ -25,6 +25,18 @@ const galleries = galleryGroups.groups
 
       <p class="sidebar-label">Share</p>
 
+      <label class="field-label" for="share-name-input">Name</label>
+      <input
+        id="share-name-input"
+        class="share-name-input"
+        type="text"
+        maxlength="80"
+        required
+        placeholder="Your name"
+        aria-label="Your name for this submission"
+      />
+      <p id="share-name-error" class="group-error" hidden></p>
+
       <button id="add-to-group-btn" class="sidebar-btn sidebar-btn--group" type="button">
         Add to Gallery
       </button>
@@ -37,13 +49,25 @@ const galleries = galleryGroups.groups
 
     </div>
 
-    <!-- Right / below: mask editor + cubby projection -->
+    <!-- Right / below: mask editor + cubby projection + plate preview -->
     <div class="face-shaping-panels">
       <div class="panel panel--editor">
         <MosaicMaskEditor />
       </div>
       <div class="panel panel--cubby">
         <canvas id="cubby-canvas" class="cubby-canvas"></canvas>
+      </div>
+      <div class="panel panel--plate-preview">
+        <div class="plate-preview-stack">
+          <div class="plate-preview-item">
+            <span class="plate-label">Front</span>
+            <canvas id="plate-top-canvas" class="plate-canvas"></canvas>
+          </div>
+          <div class="plate-preview-item">
+            <span class="plate-label">Back</span>
+            <canvas id="plate-bottom-canvas" class="plate-canvas"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -141,6 +165,29 @@ const galleries = galleryGroups.groups
     cursor: pointer;
   }
 
+  /* ── Field label ── */
+  .field-label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    display: block;
+  }
+
+  /* ── Name input ── */
+  .share-name-input {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    color: #222;
+    box-sizing: border-box;
+    background: white;
+  }
+
   /* ── Group name input ── */
   .group-name-input {
     width: 100%;
@@ -166,6 +213,40 @@ const galleries = galleryGroups.groups
     display: block;
     border-radius: 6px;
     border: 1px solid #ddd;
+  }
+
+  .panel--plate-preview {
+    flex: 0 0 auto;
+    width: 120px;
+  }
+
+  .plate-preview-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .plate-preview-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .plate-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #888;
+  }
+
+  .plate-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #f5f5f5;
   }
 
   @media (max-width: 600px) {

@@ -17,19 +17,27 @@ export const GET: APIRoute = async ({ params }) => {
     return new Response('Gallery not found', { status: 404 })
   }
 
-  // Sanitise uuid — allow only alphanumeric and hyphens
-  if (!/^[a-f0-9-]+$/.test(uuid.replace(/\.png$/, ''))) {
+  const isJson = uuid.endsWith('.json')
+  const isPng = !isJson
+
+  // Sanitise uuid — strip extension then allow only alphanumeric and hyphens
+  const uuidBase = uuid.replace(/\.(png|json)$/, '')
+  if (!/^[a-f0-9-]+$/.test(uuidBase)) {
     return new Response('Not found', { status: 404 })
   }
 
-  const filename = uuid.endsWith('.png') ? uuid : `${uuid}.png`
+  const filename = isPng ? `${uuidBase}.png` : `${uuidBase}.json`
   const filePath = join(GALLERY_DATA_DIR, slug, filename)
+  const contentType = isPng ? 'image/png' : 'application/json'
+  const cacheControl = isPng
+    ? 'public, max-age=31536000'
+    : 'public, max-age=86400'
 
   try {
     const data = await readFile(filePath)
     return new Response(data, {
       status: 200,
-      headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000' },
+      headers: { 'Content-Type': contentType, 'Cache-Control': cacheControl },
     })
   } catch {
     return new Response('Not found', { status: 404 })

@@ -27,7 +27,7 @@ A visitor to the site can see all available galleries in the header navigation, 
 
 **Acceptance Scenarios**:
 
-1. **Given** a visitor loads the home or any page, **When** they look at the header, **Then** they see two labeled groups: "Public" (Hall of Faces, BrickCon 2026) and "Restricted" (Hall of Nobles, Game of Thrones, Seattle Faces), each as a link.
+1. **Given** a visitor loads the home or any page, **When** they look at the header, **Then** they see two labeled groups: "Public" (Hall of Faces, BrickCon 2026) and "Restricted" (Hall of Nobles, Game of Thrones, Seattle Faces, Hall of Presidents), each as a link.
 2. **Given** a visitor clicks a gallery link, **When** the gallery page loads, **Then** the page header shows the gallery's display name and its description (e.g., "open sharing of face mosaics" for Hall of Faces).
 3. **Given** a visitor is on a restricted gallery page, **When** they view the header, **Then** the gallery list still appears for navigation to other galleries.
 
@@ -137,9 +137,9 @@ In admin mode, each gallery cubby has four controls: move to top (green up-arrow
 
 **Gallery Structure**
 
-- **FR-001**: The system MUST define five galleries: Hall of Faces (public), BrickCon 2026 (public), Hall of Nobles (restricted), Game of Thrones (restricted), Seattle Faces (restricted).
+- **FR-001**: The system MUST define six galleries: Hall of Faces (public), BrickCon 2026 (public), Hall of Nobles (restricted), Game of Thrones (restricted), Seattle Faces (restricted), Hall of Presidents (restricted).
 - **FR-002**: Each gallery definition MUST include: slug, display name, description, and a public/restricted flag.
-- **FR-003**: Gallery descriptions for each gallery MUST be: Hall of Faces — "open sharing of face mosaics"; BrickCon 2026 — "crowd participation at Lego event"; Hall of Nobles — "Jeff's friends and family"; Game of Thrones — "Game of Thrones characters"; Seattle Faces — "Seattle celebrities".
+- **FR-003**: Gallery descriptions for each gallery MUST be: Hall of Faces — "open sharing of face mosaics"; BrickCon 2026 — "crowd participation at Lego event"; Hall of Nobles — "Jeff's friends and family"; Game of Thrones — "Game of Thrones characters"; Seattle Faces — "Seattle celebrities"; Hall of Presidents — "recent US presidents".
 
 **Header Navigation**
 

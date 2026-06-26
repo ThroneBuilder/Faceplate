@@ -14,6 +14,11 @@ const restrictedGalleries = getRestrictedGalleries()
   <div class="gallery-group">
     <span class="group-label">Public</span>
     <ul>
+      <li>
+        <a href="/" class:list={['gallery-link', { active: currentSlug === undefined }]}>
+          Faceplate
+        </a>
+      </li>
       {publicGalleries.map(g => (
         <li>
           <a href={`/${g.slug}`} class:list={['gallery-link', { active: g.slug === currentSlug }]}>
@@ -24,7 +29,7 @@ const restrictedGalleries = getRestrictedGalleries()
     </ul>
   </div>
   <div class="gallery-group">
-    <span class="group-label">Restricted</span>
+    <span class="group-label">Curated</span>
     <ul>
       {restrictedGalleries.map(g => (
         <li>

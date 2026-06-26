@@ -1,15 +1,53 @@
 import type { FaceMask, PlateLayoutResult, PlateSpec, BrickHeight } from '../../types/index.js'
 
-// Piece candidates for front layer: horizontal-first, largest area first
+// Piece candidates for front layer: horizontal-first, largest area first.
+// For equal area, wider plate listed before taller.
 const FRONT_PIECES: { w: number; h: number }[] = [
-  { w: 8, h: 2 }, { w: 6, h: 2 }, { w: 4, h: 2 }, { w: 3, h: 2 }, { w: 2, h: 2 },
-  { w: 4, h: 1 }, { w: 3, h: 1 }, { w: 2, h: 1 }, { w: 1, h: 1 },
+  { w: 16, h: 16 },
+  { w: 16, h: 8 }, { w: 8, h: 16 },
+  { w: 8, h: 8 },
+  { w: 16, h: 4 }, { w: 4, h: 16 },
+  { w: 8, h: 6 }, { w: 6, h: 8 },
+  { w: 12, h: 4 }, { w: 4, h: 12 },
+  { w: 8, h: 4 }, { w: 4, h: 8 },
+  { w: 8, h: 3 }, { w: 3, h: 8 },
+  { w: 8, h: 2 }, { w: 2, h: 8 },
+  { w: 6, h: 4 }, { w: 4, h: 6 },
+  { w: 6, h: 2 }, { w: 2, h: 6 },
+  { w: 4, h: 4 },
+  { w: 4, h: 3 }, { w: 3, h: 4 },
+  { w: 4, h: 2 }, { w: 2, h: 4 },
+  { w: 4, h: 1 }, { w: 1, h: 4 },
+  { w: 3, h: 2 }, { w: 2, h: 3 },
+  { w: 3, h: 1 }, { w: 1, h: 3 },
+  { w: 2, h: 2 },
+  { w: 2, h: 1 }, { w: 1, h: 2 },
+  { w: 1, h: 1 },
 ]
 
-// Piece candidates for back layer: vertical-first (seams staggered vs front)
+// Piece candidates for back layer: vertical-first (seams staggered vs front).
+// For equal area, taller plate listed before wider.
 const BACK_PIECES: { w: number; h: number }[] = [
-  { w: 2, h: 8 }, { w: 2, h: 6 }, { w: 2, h: 4 }, { w: 2, h: 3 }, { w: 2, h: 2 },
-  { w: 1, h: 4 }, { w: 1, h: 3 }, { w: 1, h: 2 }, { w: 1, h: 1 },
+  { w: 16, h: 16 },
+  { w: 8, h: 16 }, { w: 16, h: 8 },
+  { w: 8, h: 8 },
+  { w: 4, h: 16 }, { w: 16, h: 4 },
+  { w: 6, h: 8 }, { w: 8, h: 6 },
+  { w: 4, h: 12 }, { w: 12, h: 4 },
+  { w: 4, h: 8 }, { w: 8, h: 4 },
+  { w: 3, h: 8 }, { w: 8, h: 3 },
+  { w: 2, h: 8 }, { w: 8, h: 2 },
+  { w: 4, h: 6 }, { w: 6, h: 4 },
+  { w: 2, h: 6 }, { w: 6, h: 2 },
+  { w: 4, h: 4 },
+  { w: 3, h: 4 }, { w: 4, h: 3 },
+  { w: 2, h: 4 }, { w: 4, h: 2 },
+  { w: 1, h: 4 }, { w: 4, h: 1 },
+  { w: 2, h: 3 }, { w: 3, h: 2 },
+  { w: 1, h: 3 }, { w: 3, h: 1 },
+  { w: 2, h: 2 },
+  { w: 1, h: 2 }, { w: 2, h: 1 },
+  { w: 1, h: 1 },
 ]
 
 export function computePlateLayout(

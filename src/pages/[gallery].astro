@@ -194,7 +194,9 @@ const galleriesJson = JSON.stringify(allGalleries.filter(g => g.slug !== slug).m
         <div class="header-left">
           <h1>{gallery.displayName}</h1>
           <p class="tagline">{gallery.description}</p>
-          <a class="more-info" href={`/?gallery=${slug}`}>Add your face to this gallery ↗</a>
+          {gallery.visibility === 'public' && (
+            <a class="more-info" href={`/?gallery=${slug}`}>Add your face to this gallery ↗</a>
+          )}
           {isAdmin && (
             <div class="bulk-bar" id="bulk-bar">
               <span class="bulk-count" id="bulk-count"></span>

@@ -20,6 +20,11 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ success: false, error: 'Invalid request' }, 400)
   }
 
+  const name = (formData.get('name') as string | null)?.trim() ?? ''
+  if (!name || name.length > 80) {
+    return json({ success: false, error: 'Name is required (max 80 characters)' }, 400)
+  }
+
   const groupName = (formData.get('group_name') as string | null)?.trim() ?? ''
   if (!groupName || groupName.length > 64) {
     return json({ success: false, error: 'Group name is required (max 64 characters)' }, 400)
@@ -37,6 +42,9 @@ export const POST: APIRoute = async ({ request }) => {
   if (!group) {
     return json({ success: false, error: 'Group not found — check the group name and try again' }, 404)
   }
+  if (group.visibility !== 'public') {
+    return json({ success: false, error: 'Submissions are only allowed to public galleries' }, 403)
+  }
 
   const uuid = randomUUID()
   const filename = `${uuid}.png`
@@ -46,10 +54,10 @@ export const POST: APIRoute = async ({ request }) => {
     await mkdir(dir, { recursive: true })
     const buffer = Buffer.from(await mosaicFile.arrayBuffer())
     await writeFile(join(dir, filename), buffer)
-    const csvFile = formData.get('mosaic_csv') as File | null
-    if (csvFile) {
-      const csvBuffer = Buffer.from(await csvFile.arrayBuffer())
-      await writeFile(join(dir, `${uuid}.csv`), csvBuffer)
+    const jsonFile = formData.get('mosaic_json') as File | null
+    if (jsonFile) {
+      const jsonBuffer = Buffer.from(await jsonFile.arrayBuffer())
+      await writeFile(join(dir, `${uuid}.json`), jsonBuffer)
     }
   } catch {
     return json({ success: false, error: 'Server error — please try again' }, 500)
@@ -61,9 +69,9 @@ export const POST: APIRoute = async ({ request }) => {
       slug: group.slug,
       timestamp: Date.now(),
       filename,
+      name,
     })
   } catch {
-    // Manifest write failure is non-fatal for the current request
     console.error('[gallery] Failed to append submission to manifest')
   }
 

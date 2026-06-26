@@ -1,9 +1,10 @@
 ---
 export const prerender = false
 
-import { findGallery, GALLERY_DATA_DIR } from '../lib/gallery/config.js'
+import { findGallery, getGalleries, GALLERY_DATA_DIR } from '../lib/gallery/config.js'
 import { readSubmissions } from '../lib/gallery/submissions.js'
 import { CUBBY_SLOTS, HALL_W, HALL_H, HALL_MOSAIC_SCALE } from '../lib/gallery/cubby-slots.js'
+import GalleryNav from '../components/GalleryNav.astro'
 
 const slug = Astro.params.gallery as string
 const gallery = findGallery(slug)
@@ -15,36 +16,67 @@ if (!gallery) {
 const isAdmin = Astro.url.searchParams.get('admin') === 'true'
 
 const submissions = readSubmissions(GALLERY_DATA_DIR, slug)
+const allGalleries = getGalleries()
 const BATCH_SIZE = 6
 
 // Build batches of 6; always at least one batch (for empty gallery)
 const batches: (string | null)[][] = []
 const batchUuids: (string | null)[][] = []
+const batchNames: (string | null)[][] = []
+const batchMoveTooltips: (string | null)[][] = []
 const count = Math.max(submissions.length, 1)
 for (let i = 0; i < count; i += BATCH_SIZE) {
+  const bi = batches.length
   const batch: (string | null)[] = []
   const uuids: (string | null)[] = []
+  const names: (string | null)[] = []
+  const moveTooltips: (string | null)[] = []
   for (let j = 0; j < BATCH_SIZE; j++) {
     const sub = submissions[i + j]
+    const totalPos = bi * BATCH_SIZE + j
     batch.push(sub ? `/api/gallery/image/${slug}/${sub.uuid}.png` : null)
     uuids.push(sub ? sub.uuid : null)
+    names.push(sub ? (sub.name || null) : null)
+    if (sub) {
+      const posInGroup = j
+      if (bi === 0 && posInGroup === 0) {
+        moveTooltips.push('Move to bottom')
+      } else if (posInGroup === 0) {
+        moveTooltips.push('Move to previous group')
+      } else {
+        moveTooltips.push('Move to top')
+      }
+    } else {
+      moveTooltips.push(null)
+    }
   }
   batches.push(batch)
   batchUuids.push(uuids)
+  batchNames.push(names)
+  batchMoveTooltips.push(moveTooltips)
 }
 
-// Button positions: lower corners of each mosaic alcove (canvas-space → %)
+// Button positions: all 4 corners + tooltip area of each mosaic alcove (canvas-space → %)
 const brickPx = Math.round(HALL_H * HALL_MOSAIC_SCALE / 32)
 const halfMosPx = 16 * brickPx
 const slotButtonPos = CUBBY_SLOTS.map(s => ({
-  deleteLeft:  ((s.alcoveCx + halfMosPx) / HALL_W * 100).toFixed(2),
-  deleteTop:   ((s.alcoveCy + halfMosPx) / HALL_H * 100).toFixed(2),
-  promoteLeft: ((s.alcoveCx - halfMosPx) / HALL_W * 100).toFixed(2),
-  promoteTop:  ((s.alcoveCy + halfMosPx) / HALL_H * 100).toFixed(2),
+  moveLeft:     ((s.alcoveCx - halfMosPx) / HALL_W * 100).toFixed(2),
+  moveTop:      ((s.alcoveCy - halfMosPx) / HALL_H * 100).toFixed(2),
+  selectLeft:   ((s.alcoveCx + halfMosPx) / HALL_W * 100).toFixed(2),
+  selectTop:    ((s.alcoveCy - halfMosPx) / HALL_H * 100).toFixed(2),
+  downloadLeft: ((s.alcoveCx - halfMosPx) / HALL_W * 100).toFixed(2),
+  downloadTop:  ((s.alcoveCy + halfMosPx) / HALL_H * 100).toFixed(2),
+  deleteLeft:   ((s.alcoveCx + halfMosPx) / HALL_W * 100).toFixed(2),
+  deleteTop:    ((s.alcoveCy + halfMosPx) / HALL_H * 100).toFixed(2),
+  tooltipLeft:  ((s.alcoveCx - halfMosPx) / HALL_W * 100).toFixed(2),
+  tooltipTop:   ((s.alcoveCy - halfMosPx) / HALL_H * 100).toFixed(2),
+  tooltipW:     (halfMosPx * 2 / HALL_W * 100).toFixed(2),
+  tooltipH:     (halfMosPx * 2 / HALL_H * 100).toFixed(2),
 }))
 
 const compositeConstants = JSON.stringify({ CUBBY_SLOTS, HALL_W, HALL_H, HALL_MOSAIC_SCALE })
 const batchesJson = JSON.stringify(batches)
+const galleriesJson = JSON.stringify(allGalleries.filter(g => g.slug !== slug).map(g => ({ slug: g.slug, displayName: g.displayName })))
 ---
 
 <!doctype html>
@@ -58,16 +90,50 @@ const batchesJson = JSON.stringify(batches)
       *, *::before, *::after { box-sizing: border-box; }
       body { font-family: system-ui, -apple-system, sans-serif; background: #f8f8f8; color: #222; margin: 0; }
       header { background: #1a1a2e; color: white; padding: 1.25rem 2rem; }
-      .header-inner { max-width: 900px; margin: 0 auto; }
+      .header-inner { max-width: 960px; margin: 0 auto; display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; }
+      .header-left { flex: 1; min-width: 0; }
       header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; }
       .tagline { margin: 0.2rem 0 0; font-size: 0.9rem; color: #aaa; }
       .more-info { display: inline-block; margin-top: 0.5rem; font-size: 0.8rem; color: #e87722; text-decoration: none; }
       .more-info:hover { text-decoration: underline; }
+
+      /* ── Bulk action bar (shown only when faces are selected) ── */
+      .bulk-bar {
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.6rem;
+        padding: 0.4rem 0.6rem;
+        background: rgba(255,255,255,0.1);
+        border-radius: 6px;
+        font-size: 0.82rem;
+      }
+      .bulk-bar.visible { display: flex; }
+      .bulk-bar label { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+      .bulk-bar button, .bulk-bar select {
+        padding: 0.25rem 0.6rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        color: white;
+      }
+      .bulk-bar .bulk-count { opacity: 0.7; font-size: 0.78rem; }
+      .bulk-all-btn   { background: #555; }
+      .bulk-clear-btn { background: #444; }
+      .bulk-move-btn  { background: #1a8f2e; }
+      .bulk-dl-btn    { background: #2563eb; }
+      .bulk-del-btn   { background: #c0141c; }
+      .bulk-gallery-select { color: #222; background: white; }
+
       main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; display: flex; flex-direction: column; gap: 2rem; }
       .hall-composite { width: 100%; position: relative; }
       .hall-canvas { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid #ddd; }
       .admin-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-      .delete-btn, .promote-btn {
+
+      /* ── Admin circle buttons ── */
+      .move-btn, .select-btn, .download-btn, .delete-btn {
         position: absolute;
         transform: translate(-50%, -50%);
         pointer-events: all;
@@ -86,19 +152,68 @@ const batchesJson = JSON.stringify(batches)
         transition: filter 0.15s, transform 0.1s;
         line-height: 1;
       }
-      .delete-btn { background: #c0141c; }
-      .promote-btn { background: #1a8f2e; }
-      .delete-btn:hover { filter: brightness(1.2); transform: translate(-50%, -50%) scale(1.15); }
-      .promote-btn:hover { filter: brightness(1.2); transform: translate(-50%, -50%) scale(1.15); }
-      .delete-btn:disabled, .promote-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .move-btn     { background: #1a8f2e; }
+      .select-btn   { background: #666; font-size: 13px; }
+      .download-btn { background: #2563eb; }
+      .delete-btn   { background: #c0141c; }
+      .move-btn:hover, .select-btn:hover, .download-btn:hover, .delete-btn:hover {
+        filter: brightness(1.2);
+        transform: translate(-50%, -50%) scale(1.15);
+      }
+      .move-btn:disabled, .select-btn:disabled, .download-btn:disabled, .delete-btn:disabled {
+        opacity: 0.5; cursor: not-allowed;
+      }
+      .select-btn.selected { background: #1a8f2e; }
+
+      /* ── Name tooltips ── */
+      .name-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+      .name-slot { position: absolute; pointer-events: all; cursor: default; }
+      .name-tooltip {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.75);
+        color: #fff;
+        font-size: 0.78rem;
+        padding: 0.25rem 0.55rem;
+        border-radius: 4px;
+        white-space: nowrap;
+        pointer-events: none;
+        margin-bottom: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .name-slot:hover .name-tooltip { display: block; opacity: 1; }
     </style>
   </head>
   <body>
     <header>
       <div class="header-inner">
-        <h1>{gallery.displayName}</h1>
-        <p class="tagline">{gallery.description}</p>
-        <a class="more-info" href={`https://faceplate.me/?hall=${slug}`}>Add your face to this gallery ↗</a>
+        <div class="header-left">
+          <h1>{gallery.displayName}</h1>
+          <p class="tagline">{gallery.description}</p>
+          {gallery.visibility === 'public' && (
+            <a class="more-info" href={`/?gallery=${slug}`}>Add your face to this gallery ↗</a>
+          )}
+          {isAdmin && (
+            <div class="bulk-bar" id="bulk-bar">
+              <span class="bulk-count" id="bulk-count"></span>
+              <button class="bulk-all-btn" id="bulk-all-btn" title="Select all faces">All</button>
+              <button class="bulk-clear-btn" id="bulk-clear-btn" title="Clear selection">Clear</button>
+              <select class="bulk-gallery-select" id="bulk-gallery-select" aria-label="Target gallery for move">
+                {allGalleries.filter(g => g.slug !== slug).map(g => (
+                  <option value={g.slug}>{g.displayName}</option>
+                ))}
+              </select>
+              <button class="bulk-move-btn" id="bulk-move-btn" title="Move selected faces">Move</button>
+              <button class="bulk-dl-btn" id="bulk-dl-btn" title="Download data files for selected faces">Download</button>
+              <button class="bulk-del-btn" id="bulk-del-btn" title="Delete selected faces">Delete</button>
+            </div>
+          )}
+        </div>
+        <GalleryNav currentSlug={slug} />
       </div>
     </header>
 
@@ -106,10 +221,50 @@ const batchesJson = JSON.stringify(batches)
       {batches.map((_, bi) => (
         <div class="hall-composite">
           <canvas class="hall-canvas" data-batch-index={bi} width={HALL_W} height={HALL_H}></canvas>
+
+          {/* Name tooltips — always visible, one per occupied slot */}
+          <div class="name-overlay">
+            {batchUuids[bi].map((uuid, si) => uuid && batchNames[bi][si] && (
+              <div
+                class="name-slot"
+                style={`left:${slotButtonPos[si].tooltipLeft}%;top:${slotButtonPos[si].tooltipTop}%;width:${slotButtonPos[si].tooltipW}%;height:${slotButtonPos[si].tooltipH}%`}
+              >
+                <span class="name-tooltip">{batchNames[bi][si]}</span>
+              </div>
+            ))}
+          </div>
+
           {isAdmin && (
             <div class="admin-overlay">
               {batchUuids[bi].map((uuid, si) => uuid && (
                 <>
+                  {/* Upper-left: Move */}
+                  <button
+                    class="move-btn"
+                    data-uuid={uuid}
+                    data-slug={slug}
+                    style={`left:${slotButtonPos[si].moveLeft}%;top:${slotButtonPos[si].moveTop}%`}
+                    aria-label={batchMoveTooltips[bi][si] ?? 'Move'}
+                    title={batchMoveTooltips[bi][si] ?? 'Move to top'}
+                  >&#x2191;</button>
+                  {/* Upper-right: Select */}
+                  <button
+                    class="select-btn"
+                    data-uuid={uuid}
+                    style={`left:${slotButtonPos[si].selectLeft}%;top:${slotButtonPos[si].selectTop}%`}
+                    aria-label="Select this face"
+                    title="Select"
+                  >&#x25A1;</button>
+                  {/* Lower-left: Download */}
+                  <button
+                    class="download-btn"
+                    data-uuid={uuid}
+                    data-slug={slug}
+                    style={`left:${slotButtonPos[si].downloadLeft}%;top:${slotButtonPos[si].downloadTop}%`}
+                    aria-label="Download build data"
+                    title="Download build data"
+                  >&#x2193;</button>
+                  {/* Lower-right: Delete */}
                   <button
                     class="delete-btn"
                     data-uuid={uuid}
@@ -118,14 +273,6 @@ const batchesJson = JSON.stringify(batches)
                     aria-label="Delete this face"
                     title="Delete this face"
                   >&#x2715;</button>
-                  <button
-                    class="promote-btn"
-                    data-uuid={uuid}
-                    data-slug={slug}
-                    style={`left:${slotButtonPos[si].promoteLeft}%;top:${slotButtonPos[si].promoteTop}%`}
-                    aria-label="Promote to top"
-                    title="Move to top of gallery"
-                  >&#x2303;</button>
                 </>
               ))}
             </div>
@@ -139,51 +286,179 @@ const batchesJson = JSON.stringify(batches)
       window.HALL_COMPOSITING_CONSTANTS = ${compositeConstants};
     `}></script>
     <script src="/scripts/gallery-composite.js" defer></script>
+
+    {isAdmin && (
+      <script is:inline set:html={`window.GALLERY_SLUG = ${JSON.stringify(slug)};`}></script>
+    )}
+
     {isAdmin && (
       <script is:inline>
+        var gallerySlug = window.GALLERY_SLUG;
+
+        // ── Selection state ──
+        var selected = new Set();
+        var allUuids = Array.from(document.querySelectorAll('.select-btn')).map(function(b) {
+          return b.dataset.uuid;
+        }).filter(Boolean);
+
+        var bulkBar = document.getElementById('bulk-bar');
+        var bulkCount = document.getElementById('bulk-count');
+        var bulkAllBtn = document.getElementById('bulk-all-btn');
+        var bulkClearBtn = document.getElementById('bulk-clear-btn');
+        var bulkGallerySelect = document.getElementById('bulk-gallery-select');
+        var bulkMoveBtn = document.getElementById('bulk-move-btn');
+        var bulkDlBtn = document.getElementById('bulk-dl-btn');
+        var bulkDelBtn = document.getElementById('bulk-del-btn');
+
+        function updateBulkBar() {
+          var n = selected.size;
+          if (n > 0) {
+            bulkBar.classList.add('visible');
+            bulkCount.textContent = n + ' face' + (n === 1 ? '' : 's') + ' selected';
+            var target = bulkGallerySelect ? bulkGallerySelect.options[bulkGallerySelect.selectedIndex]?.text : '';
+            if (bulkMoveBtn) bulkMoveBtn.title = 'Move ' + n + ' face' + (n===1?'':'s') + (target ? ' to ' + target : '');
+            if (bulkDelBtn) bulkDelBtn.title = 'Delete ' + n + ' face' + (n===1?'':'s');
+          } else {
+            bulkBar.classList.remove('visible');
+          }
+        }
+
+        function toggleSelect(uuid, btn) {
+          if (selected.has(uuid)) {
+            selected.delete(uuid);
+            btn.textContent = '□';
+            btn.classList.remove('selected');
+            btn.title = 'Select';
+          } else {
+            selected.add(uuid);
+            btn.textContent = '☑';
+            btn.classList.add('selected');
+            btn.title = 'Deselect';
+          }
+          updateBulkBar();
+        }
+
+        // ── Per-face buttons ──
         document.querySelectorAll('.delete-btn').forEach(function(btn) {
           btn.addEventListener('click', async function() {
-            if (!confirm('Delete this face? This cannot be undone.')) return
-            btn.disabled = true
+            if (!confirm('Delete this face? This cannot be undone.')) return;
+            btn.disabled = true;
             try {
-              const res = await fetch('/api/gallery/delete', {
+              var res = await fetch('/api/gallery/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uuid: btn.dataset.uuid, slug: btn.dataset.slug }),
-              })
-              if (res.ok) {
-                window.location.reload()
-              } else {
-                alert('Delete failed — please try again')
-                btn.disabled = false
-              }
-            } catch {
-              alert('Network error — please try again')
-              btn.disabled = false
-            }
-          })
-        })
-        document.querySelectorAll('.promote-btn').forEach(function(btn) {
+              });
+              if (res.ok) { window.location.reload(); }
+              else { alert('Delete failed — please try again'); btn.disabled = false; }
+            } catch { alert('Network error — please try again'); btn.disabled = false; }
+          });
+        });
+
+        document.querySelectorAll('.move-btn').forEach(function(btn) {
           btn.addEventListener('click', async function() {
-            btn.disabled = true
+            btn.disabled = true;
             try {
-              const res = await fetch('/api/gallery/promote', {
+              var res = await fetch('/api/gallery/promote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uuid: btn.dataset.uuid, slug: btn.dataset.slug }),
-              })
-              if (res.ok) {
-                window.location.reload()
-              } else {
-                alert('Promote failed — please try again')
-                btn.disabled = false
-              }
-            } catch {
-              alert('Network error — please try again')
-              btn.disabled = false
+              });
+              if (res.ok) { window.location.reload(); }
+              else { alert('Move failed — please try again'); btn.disabled = false; }
+            } catch { alert('Network error — please try again'); btn.disabled = false; }
+          });
+        });
+
+        document.querySelectorAll('.select-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            toggleSelect(btn.dataset.uuid, btn);
+          });
+        });
+
+        document.querySelectorAll('.download-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var a = document.createElement('a');
+            a.href = '/api/gallery/image/' + btn.dataset.slug + '/' + btn.dataset.uuid + '.json';
+            a.download = btn.dataset.uuid + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          });
+        });
+
+        // ── Bulk actions ──
+        if (bulkAllBtn) {
+          bulkAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.select-btn').forEach(function(btn) {
+              if (!selected.has(btn.dataset.uuid)) toggleSelect(btn.dataset.uuid, btn);
+            });
+          });
+        }
+
+        if (bulkClearBtn) {
+          bulkClearBtn.addEventListener('click', function() {
+            document.querySelectorAll('.select-btn.selected').forEach(function(btn) {
+              toggleSelect(btn.dataset.uuid, btn);
+            });
+          });
+        }
+
+        if (bulkGallerySelect) {
+          bulkGallerySelect.addEventListener('change', updateBulkBar);
+        }
+
+        if (bulkMoveBtn) {
+          bulkMoveBtn.addEventListener('click', async function() {
+            if (selected.size === 0) return;
+            var toSlug = bulkGallerySelect ? bulkGallerySelect.value : '';
+            if (!toSlug) return;
+            var target = bulkGallerySelect.options[bulkGallerySelect.selectedIndex]?.text ?? toSlug;
+            if (!confirm('Move ' + selected.size + ' face(s) to ' + target + '?')) return;
+            bulkMoveBtn.disabled = true;
+            try {
+              var res = await fetch('/api/gallery/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uuids: Array.from(selected), fromSlug: gallerySlug, toSlug }),
+              });
+              if (res.ok) { window.location.reload(); }
+              else { alert('Move failed — please try again'); bulkMoveBtn.disabled = false; }
+            } catch { alert('Network error — please try again'); bulkMoveBtn.disabled = false; }
+          });
+        }
+
+        if (bulkDlBtn) {
+          bulkDlBtn.addEventListener('click', function() {
+            selected.forEach(function(uuid) {
+              var a = document.createElement('a');
+              a.href = '/api/gallery/image/' + gallerySlug + '/' + uuid + '.json';
+              a.download = uuid + '.json';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            });
+          });
+        }
+
+        if (bulkDelBtn) {
+          bulkDelBtn.addEventListener('click', async function() {
+            if (selected.size === 0) return;
+            if (!confirm('Delete ' + selected.size + ' face(s)? This cannot be undone.')) return;
+            bulkDelBtn.disabled = true;
+            var uuids = Array.from(selected);
+            for (var i = 0; i < uuids.length; i++) {
+              try {
+                await fetch('/api/gallery/delete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ uuid: uuids[i], slug: gallerySlug }),
+                });
+              } catch { /* continue */ }
             }
-          })
-        })
+            window.location.reload();
+          });
+        }
       </script>
     )}
   </body>

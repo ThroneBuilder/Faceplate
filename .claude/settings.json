@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rm c:/Users/jjame/projects/Faceplate/tests/regression/__snapshots__/*.json)"
+      "Bash(rm c:/Users/jjame/projects/Faceplate/tests/regression/__snapshots__/*.json)",
+      "PowerShell(.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName \"gallery-platform\" \"Create multi-gallery management with public/restricted galleries, backing plate preview, enhanced sharing with name field and JSON export, gallery name hover, and expanded admin controls with bulk operations\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\jjame\\projects\\Faceplate\\tests\\regression\\__snapshots__"

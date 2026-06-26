@@ -1,0 +1,89 @@
+---
+import { getPublicGalleries, getRestrictedGalleries } from '../lib/gallery/config.js'
+
+interface Props {
+  currentSlug?: string
+}
+
+const { currentSlug } = Astro.props
+const publicGalleries = getPublicGalleries()
+const restrictedGalleries = getRestrictedGalleries()
+---
+
+<nav class="gallery-nav">
+  <div class="gallery-group">
+    <span class="group-label">Public</span>
+    <ul>
+      <li>
+        <a href="/" class:list={['gallery-link', { active: currentSlug === undefined }]}>
+          Faceplate
+        </a>
+      </li>
+      {publicGalleries.map(g => (
+        <li>
+          <a href={`/${g.slug}`} class:list={['gallery-link', { active: g.slug === currentSlug }]}>
+            {g.displayName}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+  <div class="gallery-group">
+    <span class="group-label">Curated</span>
+    <ul>
+      {restrictedGalleries.map(g => (
+        <li>
+          <a href={`/${g.slug}`} class:list={['gallery-link', { active: g.slug === currentSlug }]}>
+            {g.displayName}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</nav>
+
+<style>
+  .gallery-nav {
+    display: flex;
+    gap: 2rem;
+    font-size: 0.8rem;
+  }
+
+  .gallery-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .group-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.65rem;
+    opacity: 0.5;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .gallery-link {
+    color: #ccc;
+    text-decoration: none;
+  }
+
+  .gallery-link:hover {
+    color: white;
+    text-decoration: underline;
+  }
+
+  .gallery-link.active {
+    color: white;
+    font-weight: 600;
+  }
+</style>

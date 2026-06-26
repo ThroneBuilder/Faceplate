@@ -25,3 +25,11 @@ export function getGalleries(): GalleryGroup[] {
 export function findGallery(slug: string): GalleryGroup | undefined {
   return getGalleries().find(g => g.slug === slug)
 }
+
+export function getPublicGalleries(): GalleryGroup[] {
+  return getGalleries().filter(g => g.visibility === 'public')
+}
+
+export function getRestrictedGalleries(): GalleryGroup[] {
+  return getGalleries().filter(g => g.visibility === 'unlisted')
+}

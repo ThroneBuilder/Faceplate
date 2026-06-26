@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request }) => {
   const dir = join(GALLERY_DATA_DIR, slug)
   await Promise.all([
     unlink(join(dir, `${uuid}.png`)).catch(() => {}),
-    unlink(join(dir, `${uuid}.csv`)).catch(() => {}),
+    unlink(join(dir, `${uuid}.json`)).catch(() => {}),
   ])
 
   return json({ success: true })

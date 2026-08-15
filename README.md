@@ -1,12 +1,5 @@
-# Faceplate.md
-
-Faceplate.me combines my passions of coding and Legos to automate and crowdsource the creation of the Hall of Faces.
-
-
-
 # Faceplate
 
-[![deploy](https://img.shields.io/github/actions/workflow/status/ThroneBuilder/Faceplate/deploy.yml?label=deploy)](https://github.com/ThroneBuilder/Faceplate/actions/workflows/deploy.yml)
 A web application for crowdsourcing the generating LEGO face mosaics for my Hall of Faces LEGO creation.
 
 **Live at [faceplate.me](https://faceplate.me)**

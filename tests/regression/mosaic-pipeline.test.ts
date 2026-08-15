@@ -96,6 +96,26 @@ describe('generateMosaic regression', () => {
       )
     })
   }
+
+  // Variable width — regression for the "generated faceplate taller than requested"
+  // bug, where brickHeight was silently re-derived from the crop's pixel aspect
+  // ratio instead of honoring the caller's explicit height. Width and height must
+  // now vary independently.
+  it('an explicit width narrower than 32 does not change the requested height', () => {
+    const mosaic = generateMosaic(makeRainbowGradient(), palette, { width: 18, height: 32 })
+    expect(mosaic.width).toBe(18)
+    expect(mosaic.height).toBe(32)
+    expect(mosaic.grid.length).toBe(32)
+    expect(mosaic.grid.every(row => row.length === 18)).toBe(true)
+  })
+
+  it('an explicit width wider than 32 does not change the requested height', () => {
+    const mosaic = generateMosaic(makeRainbowGradient(), palette, { width: 48, height: 32 })
+    expect(mosaic.width).toBe(48)
+    expect(mosaic.height).toBe(32)
+    expect(mosaic.grid.length).toBe(32)
+    expect(mosaic.grid.every(row => row.length === 48)).toBe(true)
+  })
 })
 
 describe('candidate mosaic regression', () => {

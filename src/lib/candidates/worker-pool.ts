@@ -7,6 +7,8 @@ export interface BatchOptions {
   grid: CandidateGrid
   missing: CandidateKey[]
   cropImageData: ImageData
+  brickWidth: number
+  brickHeight: WorkerInput['height']
   palette: LegoColor[]
   cache: CandidateCache
   onCellReady: (index: number, mosaic: Mosaic, durationMs?: number) => void
@@ -15,7 +17,7 @@ export interface BatchOptions {
 }
 
 export async function spawnCandidateBatch(options: BatchOptions): Promise<void> {
-  const { grid, missing, cropImageData, palette, cache, onCellReady, onCellError, signal } = options
+  const { grid, missing, cropImageData, brickWidth, brickHeight, palette, cache, onCellReady, onCellError, signal } = options
 
   if (missing.length === 0) return
 
@@ -23,9 +25,6 @@ export async function spawnCandidateBatch(options: BatchOptions): Promise<void> 
   const imageBuffer = cropImageData.data.buffer.slice(0)
   const imageWidth  = cropImageData.width
   const imageHeight = cropImageData.height
-
-  // Derive brick height from crop aspect ratio (same formula as the main pipeline)
-  const brickHeight = (Math.max(1, Math.round(32 * imageHeight / imageWidth))) as WorkerInput['height']
 
   // Map from key string → cell index in grid
   const keyToIndex = new Map<string, number>()
@@ -60,6 +59,7 @@ export async function spawnCandidateBatch(options: BatchOptions): Promise<void> 
           brightnessOffset: key.brightnessOffset,
           contrastOffset: key.contrastOffset,
           palette,
+          width: brickWidth,
           height: brickHeight,
         }
 

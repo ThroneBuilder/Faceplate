@@ -52,7 +52,7 @@ const BACK_PIECES: { w: number; h: number }[] = [
 
 export function computePlateLayout(
   mask: FaceMask,
-  mosaicWidth: 32,
+  mosaicWidth: number,
   mosaicHeight: BrickHeight,
 ): PlateLayoutResult {
   const rows = mosaicHeight

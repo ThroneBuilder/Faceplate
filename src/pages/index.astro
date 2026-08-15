@@ -123,7 +123,7 @@ import GalleryNav from '../components/GalleryNav.astro'
   import { validateFile } from '../lib/image/validate.js'
   import { getOrientedImageData } from '../lib/image/exif.js'
   import { initHeadDetector, detectHeadBounds } from '../lib/image/head-detection.js'
-  import { computeCropGeometry, clampHandles, scaleToBrickHeight } from '../lib/crop/head-crop.js'
+  import { widenCropToBrickWidth } from '../lib/crop/head-crop.js'
   import { generateMosaic } from '../lib/mosaic/pipeline.js'
   import { derivePartsList } from '../lib/mosaic/parts-list.js'
   import {
@@ -397,13 +397,18 @@ import GalleryNav from '../components/GalleryNav.astro'
     const dH = acqImage.offsetHeight
     if (!dW || !dH) return
 
-    const topY    = Math.round(hctTopPx  / dH * iH)
-    const bottomY = Math.round(hctBotPx  / dH * iH)
-    const leftX   = Math.round(hctLeftPx / dW * iW)
-    const rightX  = Math.round(hctRightPx/ dW * iW)
-    const cropWidthPx  = Math.max(1, rightX  - leftX)
+    const topY      = Math.round(hctTopPx  / dH * iH)
+    const bottomY   = Math.round(hctBotPx  / dH * iH)
+    const rawLeftX  = Math.round(hctLeftPx / dW * iW)
+    const rawRightX = Math.round(hctRightPx/ dW * iW)
     const cropHeightPx = Math.max(1, bottomY - topY)
-    const bh = Math.max(1, Math.round(32 * cropHeightPx / cropWidthPx)) as BrickHeight
+    // Height in bricks is exactly what the user picked in the dropdown — it always
+    // spans the full crop height. Width in bricks is derived from the crop's pixel
+    // aspect ratio (the crop box itself is unconstrained), widened by up to half a
+    // brick per side so the pixel width divides evenly and the image isn't stretched.
+    const bh: BrickHeight = appState.phase === 'head-cropping' ? appState.brickHeight : 32
+    const { leftX, rightX, cropWidthPx, brickWidth } =
+      widenCropToBrickWidth(rawLeftX, rawRightX, cropHeightPx, iW, bh)
 
     const srcCanvas  = document.createElement('canvas')
     srcCanvas.width  = iW; srcCanvas.height = iH
@@ -413,7 +418,7 @@ import GalleryNav from '../components/GalleryNav.astro'
     cropCanvas.getContext('2d')!.drawImage(srcCanvas, -leftX, -topY)
     const cropImageData = cropCanvas.getContext('2d')!.getImageData(0, 0, cropWidthPx, cropHeightPx)
 
-    const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, imageData: cropImageData }
+    const crop: HeadCropSelection = { topY, bottomY, leftX, rightX, cropWidthPx, cropHeightPx, brickHeight: bh, brickWidth, imageData: cropImageData }
     // Cache image blob for session persistence and ZIP download
     cropCanvas.toBlob(blob => { if (blob) sessionImageBlob = blob }, 'image/jpeg', 0.92)
     // Abort any in-progress generation and clear stale candidate state
@@ -718,7 +723,7 @@ import GalleryNav from '../components/GalleryNav.astro'
     requestAnimationFrame(() => {
       setTimeout(() => {
         try {
-          const mosaic = generateMosaic(adjusted, palette, { height: crop.brickHeight ?? 32 })
+          const mosaic = generateMosaic(adjusted, palette, { width: crop.brickWidth ?? 32, height: crop.brickHeight ?? 32 })
           appState = onGenerateSuccess({ phase: 'generating', adjusted: adjustedImage }, mosaic)
           renderPhase(appState)
           renderResult(mosaic, crop.imageData)
@@ -772,6 +777,7 @@ import GalleryNav from '../components/GalleryNav.astro'
     colorMatrixEl.innerHTML = ''
     colorMatrixEl.style.gridTemplateColumns = `repeat(${mosaic.width}, ${cellPx}px)`
     colorMatrixEl.style.gridTemplateRows    = `repeat(${mosaic.height}, ${cellPx}px)`
+    colorMatrixEl.setAttribute('aria-label', `${mosaic.width} by ${mosaic.height} color matrix`)
     const paletteMap = new Map(palette.map(c => [c.id, c]))
     for (const row of mosaic.grid) {
       for (const colorId of row) {
@@ -818,9 +824,9 @@ import GalleryNav from '../components/GalleryNav.astro'
   // Pre-scale the crop to 4× the target mosaic resolution before handing to
   // workers. Phone cameras produce multi-MP crops; without this, workers each
   // receive ~100 MB of pixel data and mobile devices OOM or hang.
-  function scaleImageDataForWorkers(src: ImageData, brickHeight: number): ImageData {
+  function scaleImageDataForWorkers(src: ImageData, brickWidth: number, brickHeight: number): ImageData {
     const OVERSAMPLE = 4
-    const targetW = OVERSAMPLE * 32
+    const targetW = OVERSAMPLE * brickWidth
     const targetH = OVERSAMPLE * brickHeight
     if (src.width <= targetW && src.height <= targetH) return src
     const srcCanvas = document.createElement('canvas')
@@ -947,7 +953,7 @@ import GalleryNav from '../components/GalleryNav.astro'
       renderCandidateGrid(cs.grid, cs.history, cs.cache)
       return
     }
-    const cropImageData = scaleImageDataForWorkers(cs.crop.imageData, cs.crop.brickHeight ?? 32)
+    const cropImageData = scaleImageDataForWorkers(cs.crop.imageData, cs.crop.brickWidth ?? 32, cs.crop.brickHeight ?? 32)
     const ctrl = new AbortController()
     candidateAbortController = ctrl
 
@@ -961,6 +967,8 @@ import GalleryNav from '../components/GalleryNav.astro'
       grid: cs.grid,
       missing,
       cropImageData,
+      brickWidth: cs.crop.brickWidth ?? 32,
+      brickHeight: cs.crop.brickHeight ?? 32,
       palette,
       cache: cs.cache,
       signal: ctrl.signal,
@@ -1419,13 +1427,14 @@ import GalleryNav from '../components/GalleryNav.astro'
     const m = session.metadata
     sessionImageBlob = session.imageBlob
     const mask = { rows: m.maskRows, mosaicWidth: m.mosaicWidth }
-    const mosaic = { grid: m.mosaicGrid, width: m.mosaicWidth as 32, height: m.mosaicHeight, algorithmVersion: '1.0.0', pieceType: '1x1-plate' as const, mask: null }
+    const mosaic = { grid: m.mosaicGrid, width: m.mosaicWidth, height: m.mosaicHeight, algorithmVersion: '1.0.0', pieceType: '1x1-plate' as const, mask: null }
     const bitmap = await createImageBitmap(session.imageBlob)
     const canvas = document.createElement('canvas')
     canvas.width = m.cropParams.cropWidthPx; canvas.height = m.cropParams.cropHeightPx
     canvas.getContext('2d')!.drawImage(bitmap, 0, 0)
     const imageData = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
-    const crop = { ...m.cropParams, imageData }
+    // Older persisted sessions predate per-crop brickWidth; fall back to the mosaic's own width.
+    const crop = { ...m.cropParams, brickWidth: m.cropParams.brickWidth ?? m.mosaicWidth, imageData }
     appState = { phase: 'face-shaping', crop, mosaic, mask, key: m.candidateKey }
     renderPhase(appState)
   }).catch(() => renderPhase(appState))

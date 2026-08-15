@@ -67,6 +67,7 @@ export interface HeadCropSelection {
   cropWidthPx: number
   cropHeightPx: number
   brickHeight: BrickHeight
+  brickWidth: number
   imageData: ImageData
 }
 
@@ -89,7 +90,7 @@ export interface AdjustedImage {
 
 // ─── Mosaic ───────────────────────────────────────────────────────────────────
 export interface MosaicOptions {
-  width?: 32
+  width?: number
   height?: BrickHeight
   algorithmVersion?: string
   brightnessOffset?: number
@@ -98,7 +99,7 @@ export interface MosaicOptions {
 
 export interface Mosaic {
   grid: number[][]
-  width: 32
+  width: number
   height: BrickHeight
   algorithmVersion: string
   inputHash?: string
@@ -188,6 +189,7 @@ export interface WorkerInput {
   brightnessOffset: number
   contrastOffset: number
   palette: LegoColor[]
+  width: number
   height: BrickHeight
 }
 
@@ -266,6 +268,7 @@ export interface SessionMetadata {
     leftX: number; rightX: number
     cropWidthPx: number; cropHeightPx: number
     brickHeight: BrickHeight
+    brickWidth: number
   }
   candidateKey: { brightnessOffset: number; contrastOffset: number }
   distance: number

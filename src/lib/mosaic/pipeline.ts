@@ -15,7 +15,7 @@ export function generateMosaic(
     throw new PipelineError('EMPTY_PALETTE', 'Palette must contain at least one color')
   }
 
-  const width  = (options?.width  ?? GRID_WIDTH) as 32
+  const width  = options?.width  ?? GRID_WIDTH
   const height = (options?.height ?? GRID_WIDTH) as BrickHeight
 
   const grid = downsampleToGrid(imageData, width, height)

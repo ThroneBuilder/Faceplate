@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import type { Mosaic, FaceMask, LegoColor } from '../../types/index.js'
 import { renderFaceMosaicPng } from './face-mosaic-png.js'
+import { renderAssemblyGuidePng } from './assembly-guide-png.js'
 import { generateBrickLinkXml } from './bricklink-xml.js'
 import { generateStudioLdr } from './studio-ldr.js'
 
@@ -21,6 +22,7 @@ All image processing occurred entirely in your browser. No image data was sent t
 ## Files
 
 - **face-mosaic.png** — Your masked face mosaic as a transparent PNG (brick colours visible inside the face boundary; transparent outside). Use this for sharing or as a reference while building.
+- **assembly-guide.png** — A printable build reference: each brick labelled with a colour letter, a positioning grid (thick yellow lines through the centre, thinner lines every 4 bricks) to help you count studs while assembling, and a legend mapping each letter to its colour name and brick count.
 - **original-image.jpg** — Your original cropped photo for reference.
 - **bricklink-wanted.xml** — A BrickLink Wanted List you can import at bricklink.com to order exactly the bricks you need.
 - **studio-model.ldr** — An LDraw model file you can open in BrickLink Studio to visualise and share your mosaic digitally.
@@ -46,6 +48,14 @@ export async function downloadResultsZip(
     zip.file('face-mosaic.png', pngBlob)
   } catch {
     // continue without PNG
+  }
+
+  // assembly-guide.png
+  try {
+    const assemblyBlob = await renderAssemblyGuidePng(mosaic, mask, palette)
+    zip.file('assembly-guide.png', assemblyBlob)
+  } catch {
+    // continue without assembly guide
   }
 
   // original-image.jpg

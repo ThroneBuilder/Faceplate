@@ -1,10 +1,28 @@
 import type { LegoColor } from '../../types/index.js'
 
+// Pinned letters for colors whose auto-derived abbreviation would otherwise
+// be decided by fallback collisions with other colors — reserved up front so
+// palette edits elsewhere can't silently reshuffle them.
+const ABBR_OVERRIDES: Record<string, string> = {
+  'Dark Brown': 'DB',
+  'Dark Bluish Gray': 'DG',
+}
+
 /** Deterministic, unique 2-letter abbreviation per palette color (order-dependent). */
 export function buildColorAbbreviations(colors: LegoColor[]): Map<number, string> {
   const used = new Set<string>()
   const result = new Map<number, string>()
+
   for (const color of colors) {
+    const override = ABBR_OVERRIDES[color.name]
+    if (override) {
+      result.set(color.id, override)
+      used.add(override)
+    }
+  }
+
+  for (const color of colors) {
+    if (result.has(color.id)) continue
     const words = color.name.trim().split(/\s+/)
     const candidates: string[] = [
       words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : color.name.slice(0, 2).toUpperCase(),

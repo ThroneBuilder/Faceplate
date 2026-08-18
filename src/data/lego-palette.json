@@ -140,13 +140,6 @@
     "studioColorId": 312
   },
   {
-    "id": 21,
-    "name": "Dark Nougat",
-    "rgb": [231, 139, 62],
-    "brickLinkColorId": 225,
-    "studioColorId": 128
-  },
-  {
     "id": 22,
     "name": "Medium Blue",
     "rgb": [97, 175, 255],

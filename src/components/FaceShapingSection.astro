@@ -42,7 +42,7 @@ const galleries = getPublicGalleries()
       </button>
       <select id="group-name-input" class="group-name-input" aria-label="Gallery">
         {galleries.map(g => (
-          <option value={g.slug} selected={g.slug === 'hall-of-faces'}>{g.displayName}</option>
+          <option value={g.slug} selected={g.slug === 'brickcon-2026'}>{g.displayName}</option>
         ))}
       </select>
       <p id="group-error" class="group-error" hidden></p>

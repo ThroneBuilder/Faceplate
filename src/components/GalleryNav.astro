@@ -12,8 +12,13 @@ const restrictedGalleries = getRestrictedGalleries()
 
 <nav class="gallery-nav">
   <div class="gallery-group">
-    <span class="group-label">Public</span>
+    <span class="group-label">Links</span>
     <ul>
+      <li>
+        <a href="https://thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
+          ThroneBuilder
+        </a>
+      </li>
       <li>
         <a href="/" class:list={['gallery-link', { active: currentSlug === undefined }]}>
           Faceplate
@@ -28,18 +33,20 @@ const restrictedGalleries = getRestrictedGalleries()
       ))}
     </ul>
   </div>
-  <div class="gallery-group">
-    <span class="group-label">Curated</span>
-    <ul>
-      {restrictedGalleries.map(g => (
-        <li>
-          <a href={`/${g.slug}`} class:list={['gallery-link', { active: g.slug === currentSlug }]}>
-            {g.displayName}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
+  {restrictedGalleries.length > 0 && (
+    <div class="gallery-group">
+      <span class="group-label">Curated</span>
+      <ul>
+        {restrictedGalleries.map(g => (
+          <li>
+            <a href={`/${g.slug}`} class:list={['gallery-link', { active: g.slug === currentSlug }]}>
+              {g.displayName}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
 </nav>
 
 <style>

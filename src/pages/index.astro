@@ -1389,7 +1389,7 @@ import GalleryNav from '../components/GalleryNav.astro'
   // Pre-fill name field with a random name
   shareNameInput.value = generateRandomName()
 
-  // Select gallery from ?gallery= or ?hall= URL parameter, fall back to brickcon-2026
+  // Select gallery from ?gallery= or ?hall= URL parameter, fall back to hall-of-faces
   const urlParams = new URLSearchParams(window.location.search)
   const galleryParam = urlParams.get('gallery') ?? urlParams.get('hall')
   if (galleryParam) {

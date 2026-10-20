@@ -1,9 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export const GALLERY_DATA_DIR =
-  process.env.GALLERY_DATA_DIR ?? join(process.cwd(), 'gallery-data')
-
 export interface GalleryGroup {
   slug: string
   displayName: string

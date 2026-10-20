@@ -12,16 +12,11 @@ const restrictedGalleries = getRestrictedGalleries()
 
 <nav class="gallery-nav">
   <div class="gallery-group">
-    <span class="group-label">Links</span>
+    <span class="group-label">Faceplate</span>
     <ul>
       <li>
-        <a href="https://thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
-          ThroneBuilder
-        </a>
-      </li>
-      <li>
         <a href="/" class:list={['gallery-link', { active: currentSlug === undefined }]}>
-          Faceplate
+          Designer
         </a>
       </li>
       {publicGalleries.map(g => (
@@ -47,6 +42,31 @@ const restrictedGalleries = getRestrictedGalleries()
       </ul>
     </div>
   )}
+  <div class="gallery-group">
+    <span class="group-label">Sites</span>
+    <ul>
+      <li>
+        <a href="https://thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
+          ThroneBuilder
+        </a>
+      </li>
+      <li>
+        <a href="https://faceplate.thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
+          Faceplate Designer
+        </a>
+      </li>
+      <li>
+        <a href="https://mountain.thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
+          Mountain Designer
+        </a>
+      </li>
+      <li>
+        <a href="https://angle.thronebuilder.com" class="gallery-link" target="_blank" rel="noopener noreferrer">
+          Angle Designer
+        </a>
+      </li>
+    </ul>
+  </div>
 </nav>
 
 <style>

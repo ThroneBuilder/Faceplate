@@ -1,10 +1,10 @@
 import { defineConfig } from 'astro/config'
-import node from '@astrojs/node'
 
 export default defineConfig({
-  output: 'hybrid',
-  adapter: node({ mode: 'standalone' }),
-  server: {
-    host: '0.0.0.0',  // required for Render — binds on all interfaces
+  output: 'static',
+  redirects: {
+    // Phase 005 compatibility alias: /gallery/{slug} → /{slug}
+    '/gallery/hall-of-faces': '/hall-of-faces',
+    '/gallery/game-of-thrones': '/game-of-thrones',
   },
 })

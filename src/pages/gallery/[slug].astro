@@ -1,6 +1,0 @@
----
-// Phase 005 compatibility redirect: /gallery/{slug} → /{slug} (301 permanent)
-export const prerender = false
-const { slug } = Astro.params
-return Astro.redirect(`/${slug}`, 301)
----
